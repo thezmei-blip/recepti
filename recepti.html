@@ -1153,8 +1153,8 @@
       <div class="import-zone" id="importZone">
         <div class="icon">📂</div>
         <p><strong>Натисни или плъзни файл тук</strong></p>
-        <p>Поддържан формат: <strong>.json</strong></p>
-        <input type="file" id="importFile" accept=".json" style="display:none">
+        <p>Поддържани формати: <strong>.json</strong> • <strong>.xml</strong> (CookMate)</p>
+        <input type="file" id="importFile" accept=".json,.xml,.mcb" style="display:none">
       </div>
       <div id="fileLoadedMsg" style="display:none;padding:10px 14px;background:#e8f5ea;border-radius:8px;font-size:0.88rem;color:var(--green);margin-bottom:10px"></div>
       <button class="btn-primary" id="doImportFileBtn" style="display:none">📥 Импортирай файла</button>
@@ -2138,6 +2138,7 @@ document.getElementById('downloadSampleBtn').addEventListener('click', () => {
 
 // ---- TAB: FILE ----
 let loadedFileData = null;
+let loadedFileName = '';
 document.getElementById('importZone').addEventListener('click', () => document.getElementById('importFile').click());
 
 function readFileAsText(file) {
@@ -2145,17 +2146,155 @@ function readFileAsText(file) {
     const r = new FileReader();
     r.onload = ev => res(ev.target.result);
     r.onerror = rej;
-    r.readAsText(file);
+    r.readAsText(file, 'UTF-8');
   });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = ev => res(ev.target.result);
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+// ---- CookMate XML Parser ----
+function parseCookMateXML(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'text/xml');
+  const recipeNodes = doc.querySelectorAll('recipe');
+  if (!recipeNodes.length) return null;
+
+  const results = [];
+  const catMap = [
+    [/soup|чорба|супа/i,'Супа'],[/salad|салата/i,'Салата'],
+    [/dessert|десерт|cake|торта/i,'Десерт'],[/breakfast|закуска/i,'Закуска'],
+    [/drink|напитка|beverage/i,'Напитка'],[/appetizer|предястие/i,'Предястие'],
+  ];
+
+  recipeNodes.forEach(node => {
+    const getText = tag => node.querySelector(tag)?.textContent?.trim() || '';
+    const getItems = tag => [...node.querySelectorAll(`${tag} li`)].map(li => li.textContent.trim()).filter(Boolean);
+
+    const title = getText('title');
+    if (!title) return;
+
+    // Time — prefer totaltime, fallback cooktime+preptime
+    let time = null;
+    const totaltime = getText('totaltime');
+    const cooktime = getText('cooktime');
+    const preptime = getText('preptime');
+    const timeStr = totaltime || cooktime || preptime;
+    const timeMatch = timeStr.match(/(\d+)/);
+    if (timeMatch) time = parseInt(timeMatch[1]);
+
+    // Servings
+    const qty = getText('quantity');
+    const servings = qty ? parseInt(qty) : null;
+
+    // Category
+    const cats = [...node.querySelectorAll('category')].map(c => c.textContent.trim());
+    let category = 'Основно ястие';
+    for (const cat of cats) {
+      for (const [re, mapped] of catMap) {
+        if (re.test(cat)) { category = mapped; break; }
+      }
+    }
+    // Also map known CookMate categories to Bulgarian
+    const catNameMap = {
+      'Dessert':'Десерт','Десерт':'Десерт','Soup':'Супа','Супа':'Супа',
+      'Salad':'Салата','Салата':'Салата','Breakfast':'Закуска','Закуска':'Закуска',
+      'Drink':'Напитка','Напитка':'Напитка','Appetizer':'Предястие','Предястие':'Предястие',
+      'Main':'Основно ястие','Main course':'Основно ястие','Основно ястие':'Основно ястие',
+    };
+    if (cats.length && catNameMap[cats[0]]) category = catNameMap[cats[0]];
+
+    // Description — first li of description tag
+    const descItems = getItems('description');
+    const desc = descItems.join(' ').slice(0, 200);
+
+    // Ingredients — each <li> is one ingredient
+    const rawIngredients = getItems('ingredient');
+    const ingredients = rawIngredients.map(line => {
+      // Try to split "200g flour" or "flour - 200g"
+      const m = line.match(/^([\d\/½¼¾.,]+\s*(?:g|kg|ml|l|tbsp|tsp|cup|oz|lb|г|кг|мл|л|с\.л\.|ч\.л\.|бр\.?)?)\s+(.+)/i);
+      if (m) return { name: m[2].trim(), amount: m[1].trim() };
+      return { name: line, amount: '' };
+    });
+
+    // Steps
+    const steps = getItems('recipetext').filter(s => s.length > 2);
+
+    // Emoji guess from title
+    const emojiMap = [
+      [/пиле|chicken/i,'🍗'],[/свинск|pork/i,'🥩'],[/говежд|beef/i,'🥩'],[/риба|fish/i,'🐟'],
+      [/паста|макарон|pasta/i,'🍝'],[/пица|pizza/i,'🍕'],[/супа|soup/i,'🍲'],[/салата|salad/i,'🥗'],
+      [/торта|cake/i,'🎂'],[/бисквит|cookie/i,'🍪'],[/баница/i,'🥐'],[/ориз|rice/i,'🍚'],
+      [/яйц|egg/i,'🥚'],[/гъб|mushroom/i,'🍄'],[/картоф|potato/i,'🥔'],
+    ];
+    let emoji = '🍽️';
+    for (const [re, em] of emojiMap) { if (re.test(title)) { emoji = em; break; } }
+
+    results.push({
+      id: Date.now().toString() + Math.random(),
+      title, category, emoji, time, servings, desc,
+      ingredients, steps, fav: false,
+      created: new Date().toISOString()
+    });
+  });
+
+  return results.length ? results : null;
 }
 
 async function handleFile(file) {
   if (!file) return;
-  const text = await readFileAsText(file);
+  loadedFileName = file.name;
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  let text = '';
+
+  if (ext === 'mcb') {
+    // MCB is a ZIP — try to unzip and find XML inside
+    try {
+      // Use JSZip if available, otherwise inform user to export as XML
+      showToast('⚠️ MCB формат: моля експортирай като .xml от CookMate');
+      document.getElementById('fileLoadedMsg').style.display = '';
+      document.getElementById('fileLoadedMsg').style.background = '#fff3d9';
+      document.getElementById('fileLoadedMsg').style.color = 'var(--brown-mid)';
+      document.getElementById('fileLoadedMsg').textContent = '⚠️ MCB файловете не се поддържат директно. Отвори CookMate → Файл → Експорт → избери .xml формат';
+      return;
+    } catch(e) {}
+  }
+
+  text = await readFileAsText(file);
   loadedFileData = text;
-  document.getElementById('fileLoadedMsg').style.display = '';
-  document.getElementById('fileLoadedMsg').textContent = `📄 ${file.name} — готов за импорт`;
-  document.getElementById('doImportFileBtn').style.display = '';
+
+  // Detect if it's CookMate XML
+  const isCookMateXML = text.includes('<cookbook') || text.includes('<recipe>');
+
+  const msg = document.getElementById('fileLoadedMsg');
+  msg.style.display = '';
+  msg.style.background = '#e8f5ea';
+  msg.style.color = 'var(--green)';
+  msg.style.border = '1px solid var(--green-light)';
+
+  if (isCookMateXML) {
+    const parsed = parseCookMateXML(text);
+    if (parsed && parsed.length) {
+      msg.textContent = `📄 CookMate XML — намерени ${parsed.length} рецепти. Натисни „Импортирай" за да ги добавиш.`;
+      document.getElementById('doImportFileBtn').style.display = '';
+      document.getElementById('doImportFileBtn').textContent = `📥 Импортирай ${parsed.length} рецепти от CookMate`;
+    } else {
+      msg.style.background = '#fdecea';
+      msg.style.color = '#c0392b';
+      msg.textContent = '⚠️ Не намерих рецепти в XML файла';
+    }
+  } else {
+    msg.textContent = `📄 ${file.name} — готов за импорт`;
+    document.getElementById('doImportFileBtn').style.display = '';
+    document.getElementById('doImportFileBtn').textContent = '📥 Импортирай файла';
+  }
 }
 
 document.getElementById('importFile').addEventListener('change', e => handleFile(e.target.files[0]));
@@ -2171,8 +2310,23 @@ importZone.addEventListener('drop', e => {
 
 document.getElementById('doImportFileBtn').addEventListener('click', () => {
   if (!loadedFileData) return;
-  document.getElementById('importJsonText').value = loadedFileData;
-  // Switch to JSON tab and import
+
+  // Check if CookMate XML
+  const isCookMateXML = loadedFileData.includes('<cookbook') || loadedFileData.includes('<recipe>');
+  if (isCookMateXML) {
+    const parsed = parseCookMateXML(loadedFileData);
+    if (!parsed) { showToast('⚠️ Грешка при парсване на XML'); return; }
+    parsed.forEach(r => recipes.unshift(r));
+    save();
+    document.getElementById('importModal').classList.remove('open');
+    showView('home');
+    document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+    showToast(`✅ Импортирани ${parsed.length} рецепти от CookMate!`);
+    loadedFileData = null;
+    return;
+  }
+
+  // Regular JSON
   try {
     let data = JSON.parse(loadedFileData);
     if (!Array.isArray(data)) data = [data];
@@ -2192,7 +2346,7 @@ document.getElementById('doImportFileBtn').addEventListener('click', () => {
     showToast(`✅ Импортирани ${count} рецепти от файл`);
     loadedFileData = null;
   } catch(e) {
-    showToast('⚠️ Невалиден JSON файл');
+    showToast('⚠️ Невалиден файл');
   }
 });
 
