@@ -2450,7 +2450,8 @@ if (!recipes.length) {
 // GOOGLE DRIVE SYNC
 // =====================
 const DRIVE_FILE_NAME = 'moята_кухня_recepti.json';
-const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive';
+const SHARED_FOLDER_ID = '1pGF9pakbo7Flrx1oZy747ffLtz56zzgI';
 const DEFAULT_CLIENT_ID = '828797600775-aei6ubrclcdbalm9gkmot38td406329n.apps.googleusercontent.com';
 let driveToken = null;
 let driveFileId = store.getItem('mk_drive_file_id') || null;
@@ -2554,9 +2555,10 @@ function driveAutoReconnect() {
 // Find or create the app data file
 async function driveGetFileId() {
   if (driveFileId) return driveFileId;
-  // Search in appDataFolder
+  // Search in shared folder
+  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and '${SHARED_FOLDER_ID}' in parents and trashed=false`);
   const r = await fetch(
-    "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='" + DRIVE_FILE_NAME + "'&fields=files(id,name)",
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`,
     { headers: { Authorization: 'Bearer ' + driveToken } }
   );
   const d = await r.json();
@@ -2584,8 +2586,8 @@ async function driveUpload(silent = false) {
         body: blob
       });
     } else {
-      // Create new in appDataFolder
-      const meta = JSON.stringify({ name: DRIVE_FILE_NAME, parents: ['appDataFolder'] });
+      // Create new in shared folder
+      const meta = JSON.stringify({ name: DRIVE_FILE_NAME, parents: [SHARED_FOLDER_ID] });
       const form = new FormData();
       form.append('metadata', new Blob([meta], { type: 'application/json' }));
       form.append('file', blob);
