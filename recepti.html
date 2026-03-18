@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a0a00">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Моята Кухня</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fdf6ec;
+    --warm-white: #fffbf5;
+    --brown-dark: #1a0a00;
+    --brown: #3d1f00;
+    --brown-mid: #7a4010;
+    --brown-light: #c8763a;
+    --amber: #e8941a;
+    --amber-light: #f5c870;
+    --green: #3a6645;
+    --green-light: #6aaa7a;
+    --red: #c0392b;
+    --gray: #888;
+    --shadow: 0 4px 24px rgba(61,31,0,0.12);
+    --shadow-lg: 0 8px 40px rgba(61,31,0,0.18);
+    --radius: 16px;
+    --radius-sm: 8px;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'Source Sans 3', sans-serif;
+    --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--cream);
+    color: var(--brown-dark);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === HEADER === */
+  header {
+    background: var(--brown-dark);
+    padding: 0 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--amber-light);
+    font-style: italic;
+    letter-spacing: 0.02em;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn-icon {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: var(--cream);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: background var(--transition);
+  }
+  .btn-icon:hover { background: rgba(255,255,255,0.2); }
+
+  /* === NAV === */
+  nav {
+    background: var(--warm-white);
+    border-bottom: 2px solid var(--amber-light);
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 12px;
+    position: sticky;
+    top: 60px;
+    z-index: 90;
+  }
+  nav::-webkit-scrollbar { display: none; }
+
+  .nav-tab {
+    background: none;
+    border: none;
+    padding: 14px 18px;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gray);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--transition);
+  }
+  .nav-tab.active {
+    color: var(--brown);
+    border-bottom-color: var(--amber);
+  }
+  .nav-tab:hover { color: var(--brown-mid); }
+
+  /* === MAIN CONTENT === */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px 100px;
+  }
+
+  /* === VIEWS === */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* === SEARCH BAR === */
+  .search-wrap {
+    position: relative;
+    margin-bottom: 24px;
+  }
+  .search-wrap input {
+    width: 100%;
+    padding: 14px 48px 14px 18px;
+    border: 2px solid var(--amber-light);
+    border-radius: 50px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    background: var(--warm-white);
+    color: var(--brown-dark);
+    transition: border var(--transition), box-shadow var(--transition);
+    outline: none;
+  }
+  .search-wrap input:focus {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 4px rgba(232,148,26,0.15);
+  }
+  .search-wrap .search-icon {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--amber);
+    font-size: 1.2rem;
+    pointer-events: none;
+  }
+
+  /* === RECIPE GRID === */
+  .recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .recipe-card {
+    background: var(--warm-white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform var(--transition), box-shadow var(--transition);
+    border: 1px solid rgba(200,118,58,0.15);
+  }
+  .recipe-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .card-img {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    background: linear-gradient(135deg, var(--amber-light), var(--brown-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+  }
+
+  .card-body {
+    padding: 16px;
+  }
+
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--brown);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .card-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--cream);
+    color: var(--brown-mid);
+    border: 1px solid var(--amber-light);
+  }
+  .badge.green { background: #e8f5ea; color: var(--green); border-color: var(--green-light); }
+  .badge.amber { background: #fff3d9; color: var(--brown-mid); }
+
+  .card-desc {
+    font-size: 0.85rem;
+    color: var(--gray);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-footer .stars { color: var(--amber); font-size: 0.85rem; }
+  .card-footer .rating-count { font-size: 0.75rem; color: var(--gray); margin-left: 4px; }
+
+  /* === EMPTY STATE === */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--gray);
+  }
+  .empty-state .icon { font-size: 4rem; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state p { font-size: 1rem; }
+
+  /* === FAB === */
+  .fab {
+    position: fixed;
+    bottom: 28px;
+    right: 20px;
+    width: 58px;
+    height: 58px;
+    background: linear-gradient(135deg, var(--amber), var(--brown-light));
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 1.6rem;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(200,118,58,0.4);
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+  .fab:hover { transform: scale(1.1); box-shadow: 0 8px 28px rgba(200,118,58,0.5); }
+
+  /* === MODAL OVERLAY === */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26,10,0,0.6);
+    z-index: 300;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s;
+  }
+  .modal-overlay.open { display: flex; align-items: flex-end; justify-content: center; }
+  @media (min-width: 600px) {
+    .modal-overlay.open { align-items: center; }
+  }
+
+  .modal {
+    background: var(--warm-white);
+    border-radius: 24px 24px 0 0;
+    width: 100%;
+    max-width: 640px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 28px 24px 40px;
+    animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  @media (min-width: 600px) {
+    .modal { border-radius: 24px; max-height: 85vh; }
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--brown);
+  }
+  .modal-close {
+    background: var(--cream);
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: var(--brown-mid);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition);
+  }
+  .modal-close:hover { background: var(--amber-light); }
+
+  /* === FORM === */
+  .form-group {
+    margin-bottom: 18px;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--brown-mid);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid rgba(200,118,58,0.3);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    background: var(--cream);
+    color: var(--brown-dark);
+    transition: border var(--transition), box-shadow var(--transition);
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 3px rgba(232,148,26,0.12);
+    background: var(--warm-white);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* === INGREDIENT LIST === */
+  .ingredient-list { list-style: none; margin-bottom: 10px; }
+  .ingredient-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--cream);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+  }
+  .ingredient-list li .del-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background var(--transition);
+  }
+  .ingredient-list li .del-btn:hover { background: #fdecea; }
+
+  .add-row {
+    display: flex;
+    gap: 8px;
+  }
+  .add-row input { flex: 1; }
+  .add-row .btn-sm {
+    background: var(--amber);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: background var(--transition);
+  }
+  .add-row .btn-sm:hover { background: var(--brown-light); }
+
+  /* === STEPS LIST === */
+  .steps-list { list-style: none; margin-bottom: 10px; counter-reset: step; }
+  .steps-list li {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--cream);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    counter-increment: step;
+    align-items: flex-start;
+  }
+  .steps-list li::before {
+    content: counter(step);
+    background: var(--amber);
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .steps-list li .step-text { flex: 1; line-height: 1.4; }
+  .steps-list li .del-btn {
+    background: none;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 4px;
+    flex-shrink: 0;
+    transition: color var(--transition);
+  }
+
+  /* === PRIMARY BUTTON === */
+  .btn-primary {
+    width: 100%;
+    background: linear-gradient(135deg, var(--brown), var(--brown-mid));
+    color: var(--cream);
+    border: none;
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all var(--transition);
+    margin-top: 10px;
+  }
+  .btn-primary:hover { background: linear-gradient(135deg, var(--brown-mid), var(--brown-light)); }
+
+  .btn-secondary {
+    width: 100%;
+    background: var(--cream);
+    color: var(--brown-mid);
+    border: 2px solid var(--amber-light);
+    padding: 13px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    margin-top: 8px;
+  }
+  .btn-secondary:hover { background: var(--amber-light); color: var(--brown); }
+
+  /* === RECIPE DETAIL === */
+  .recipe-detail-header {
+    position: relative;
+    height: 200px;
+    background: linear-gradient(135deg, var(--amber-light), var(--brown-light));
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5rem;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .recipe-detail-header .back-btn {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: rgba(255,255,255,0.85);
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: var(--brown);
+    transition: background var(--transition);
+  }
+  .recipe-detail-header .back-btn:hover { background: white; }
+
+  .recipe-detail-title {
+    font-family: var(--font-display);
+    font-size: 1.7rem;
+    color: var(--brown);
+    margin-bottom: 12px;
+    line-height: 1.25;
+  }
+
+  .detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    color: var(--brown);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--amber-light);
+  }
+
+  .ingredients-detail {
+    list-style: none;
+    margin-bottom: 28px;
+  }
+  .ingredients-detail li {
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(200,118,58,0.15);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+  }
+  .ingredients-detail li:last-child { border-bottom: none; }
+  .ing-name { color: var(--brown-dark); }
+  .ing-amount { color: var(--brown-mid); font-weight: 600; }
+
+  .steps-detail {
+    list-style: none;
+    counter-reset: dstep;
+    margin-bottom: 28px;
+  }
+  .steps-detail li {
+    counter-increment: dstep;
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 36px;
+    height: 36px;
+    background: var(--amber);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-txt { font-size: 0.95rem; line-height: 1.6; color: var(--brown-dark); padding-top: 8px; }
+
+  /* === AI MODAL === */
+  .ai-modal { max-width: 700px; }
+  .ai-chat {
+    background: var(--cream);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    min-height: 200px;
+    max-height: 350px;
+    overflow-y: auto;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--brown-dark);
+  }
+  .ai-msg {
+    padding: 10px 14px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    max-width: 85%;
+    animation: fadeIn 0.3s;
+  }
+  .ai-msg.user {
+    background: var(--amber);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+  .ai-msg.ai {
+    background: white;
+    color: var(--brown-dark);
+    border: 1px solid rgba(200,118,58,0.2);
+    border-bottom-left-radius: 4px;
+  }
+  .ai-input-row {
+    display: flex;
+    gap: 10px;
+  }
+  .ai-input-row input { flex: 1; }
+  .ai-send-btn {
+    background: var(--amber);
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition);
+    flex-shrink: 0;
+  }
+  .ai-send-btn:hover { background: var(--brown-light); }
+
+  .gemini-key-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--cream);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    border: 1px dashed var(--amber-light);
+  }
+  .gemini-key-row input { flex: 1; font-size: 0.85rem; background: transparent; border: none; outline: none; color: var(--brown-mid); font-family: monospace; }
+  .gemini-key-row label { font-size: 0.8rem; color: var(--brown-mid); margin: 0; white-space: nowrap; text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+  /* === IMPORT === */
+  .import-zone {
+    border: 2px dashed var(--amber-light);
+    border-radius: var(--radius);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition);
+    margin-bottom: 16px;
+  }
+  .import-zone:hover { border-color: var(--amber); background: rgba(232,148,26,0.04); }
+  .import-zone .icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .import-zone p { font-size: 0.9rem; color: var(--gray); }
+  .import-zone strong { color: var(--brown-mid); }
+
+  /* === CATEGORY FILTER === */
+  .category-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .chip {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1.5px solid var(--amber-light);
+    background: var(--warm-white);
+    color: var(--brown-mid);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .chip.active {
+    background: var(--amber);
+    color: white;
+    border-color: var(--amber);
+  }
+  .chip:hover:not(.active) { background: var(--cream); }
+
+  /* === TOAST === */
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--brown-dark);
+    color: var(--cream);
+    padding: 12px 22px;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    z-index: 500;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* === SETTINGS VIEW === */
+  .settings-section {
+    background: var(--warm-white);
+    border-radius: var(--radius);
+    border: 1px solid rgba(200,118,58,0.15);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .settings-title {
+    padding: 16px 20px 12px;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--brown-mid);
+    border-bottom: 1px solid var(--cream);
+  }
+  .settings-row {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--cream);
+    font-size: 0.9rem;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row span { color: var(--gray); font-size: 0.8rem; display: block; margin-top: 2px; }
+
+  /* === SPINNER === */
+  .spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 480px) {
+    .recipe-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card-img { height: 110px; font-size: 2.5rem; }
+    .card-body { padding: 10px 12px; }
+    .card-title { font-size: 0.92rem; }
+    .form-row { grid-template-columns: 1fr; }
+    .modal { padding: 22px 16px 36px; }
+  }
+  @media (max-width: 360px) {
+    .recipe-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🍳 Моята Кухня</div>
+  <div class="header-actions">
+    <button class="btn-icon" id="btnSearch" title="Търсене">🔍</button>
+    <button class="btn-icon" id="btnAI" title="Gemini AI">✨</button>
+    <button class="btn-icon" id="btnImport" title="Импорт">📥</button>
+  </div>
+</header>
+
+<nav id="navBar">
+  <button class="nav-tab active" data-view="home">Всички</button>
+  <button class="nav-tab" data-view="favorites">❤️ Любими</button>
+  <button class="nav-tab" data-view="settings">⚙️ Настройки</button>
+</nav>
+
+<main>
+  <!-- HOME VIEW -->
+  <div class="view active" id="view-home">
+    <div class="search-wrap" id="searchBar" style="display:none">
+      <input type="text" id="searchInput" placeholder="Търси рецепта..." autocomplete="off">
+      <span class="search-icon">🔍</span>
+    </div>
+    <div class="category-chips" id="categoryChips"></div>
+    <div class="recipe-grid" id="recipeGrid"></div>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="icon">🥣</div>
+      <p>Няма намерени рецепти.<br>Добавете нова с бутона +</p>
+    </div>
+  </div>
+
+  <!-- FAVORITES VIEW -->
+  <div class="view" id="view-favorites">
+    <h2 style="font-family:var(--font-display);color:var(--brown);margin-bottom:20px">Любими рецепти</h2>
+    <div class="recipe-grid" id="favGrid"></div>
+    <div class="empty-state" id="favEmpty" style="display:none">
+      <div class="icon">💔</div>
+      <p>Все още нямате любими рецепти.</p>
+    </div>
+  </div>
+
+  <!-- SETTINGS VIEW -->
+  <div class="view" id="view-settings">
+    <h2 style="font-family:var(--font-display);color:var(--brown);margin-bottom:20px">Настройки</h2>
+
+    <!-- GOOGLE DRIVE SYNC -->
+    <div class="settings-section">
+      <div class="settings-title">☁️ Google Drive синхронизация</div>
+      <div class="settings-row" id="driveStatusRow">
+        <div>
+          <strong id="driveStatusLabel">Не сте свързани</strong>
+          <span id="driveStatusSub">Влез с Google акаунт за автоматична синхронизация</span>
+        </div>
+        <button id="driveAuthBtn" style="background:var(--green);color:white;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;white-space:nowrap">🔗 Свържи</button>
+      </div>
+      <div style="padding:0 20px 14px;display:none" id="driveClientIdRow">
+        <label style="font-size:0.8rem;color:var(--brown-mid);display:block;margin-bottom:4px;text-transform:none;letter-spacing:0;font-weight:400">
+          Google Client ID — <a href="https://console.cloud.google.com/" target="_blank" style="color:var(--amber)">console.cloud.google.com</a>
+        </label>
+        <input type="text" id="driveClientId" placeholder="xxxxxxxx.apps.googleusercontent.com" style="margin-bottom:8px;font-size:0.85rem">
+        <button class="btn-secondary" id="saveDriveClientId" style="width:auto;padding:8px 16px;margin:0;font-size:0.85rem">Запази</button>
+      </div>
+      <div class="settings-row" id="driveSyncRow" style="display:none">
+        <div>
+          <strong>Ръчна синхронизация</strong>
+          <span id="driveLastSync">Последна синхронизация: никога</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="driveUploadBtn" style="background:var(--green);color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600">⬆️ Качи</button>
+          <button id="driveDownloadBtn" style="background:var(--amber);color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600">⬇️ Свали</button>
+        </div>
+      </div>
+      <div class="settings-row" id="driveAutoRow" style="display:none">
+        <div>
+          <strong>Автоматично запазване</strong>
+          <span>Качва при всяка промяна в рецептите</span>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;margin:0">
+          <input type="checkbox" id="driveAutoSync" style="opacity:0;width:0;height:0">
+          <span id="driveToggle" style="position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:.3s"></span>
+        </label>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-title">🤖 Gemini AI интеграция</div>
+      <div class="settings-row">
+        <div>
+          <strong>API ключ</strong>
+          <span>Въведи своя Gemini API ключ</span>
+        </div>
+      </div>
+      <div style="padding:0 20px 16px">
+        <input type="password" id="settingsApiKey" placeholder="AIza..." style="margin-bottom:8px">
+        <button class="btn-secondary" id="saveApiKey" style="width:auto;padding:10px 20px;margin:0">Запази ключа</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-title">📦 Данни</div>
+      <div class="settings-row">
+        <div>
+          <strong>Експорт на рецепти</strong>
+          <span>Запази всички рецепти като JSON файл</span>
+        </div>
+        <button class="btn-secondary" id="exportBtn" style="width:auto;padding:8px 16px;margin:0;font-size:0.85rem">⬇️ Изтегли</button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <strong>Изчисти всички</strong>
+          <span style="color:#c0392b">Изтрий всички рецепти</span>
+        </div>
+        <button onclick="clearAll()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.85rem;font-weight:600">🗑️ Изчисти</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-title">ℹ️ За приложението</div>
+      <div class="settings-row">
+        <div>
+          <strong>Моята Кухня</strong>
+          <span>Версия 1.0 • Работи офлайн</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL VIEW -->
+  <div class="view" id="view-detail">
+    <div class="recipe-detail-header" id="detailHero">
+      <button class="back-btn" id="backBtn">←</button>
+      <span id="detailEmoji">🍽️</span>
+    </div>
+    <h1 class="recipe-detail-title" id="detailTitle"></h1>
+    <div class="detail-meta" id="detailMeta"></div>
+    <p style="color:var(--gray);font-size:0.95rem;margin-bottom:24px;line-height:1.6" id="detailDesc"></p>
+    <h3 class="section-title">Продукти</h3>
+    <ul class="ingredients-detail" id="detailIngredients"></ul>
+    <h3 class="section-title">Начин на приготвяне</h3>
+    <ol class="steps-detail" id="detailSteps"></ol>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn-secondary" id="detailFavBtn" style="flex:1;margin:0">❤️ Добави в любими</button>
+      <button class="btn-secondary" id="detailEditBtn" style="flex:1;margin:0">✏️ Редактирай</button>
+      <button onclick="deleteCurrentRecipe()" style="background:none;border:2px solid #c0392b;color:#c0392b;padding:13px 16px;border-radius:8px;cursor:pointer;font-weight:600">🗑️</button>
+    </div>
+  </div>
+</main>
+
+<button class="fab" id="fabAdd">＋</button>
+
+<!-- ADD/EDIT RECIPE MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modalTitle">Нова рецепта</h2>
+      <button class="modal-close" id="closeAddModal">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Заглавие</label>
+      <input type="text" id="fTitle" placeholder="Например: Мусака с картофи">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Категория</label>
+        <select id="fCategory">
+          <option value="Основно ястие">Основно ястие</option>
+          <option value="Супа">Супа</option>
+          <option value="Салата">Салата</option>
+          <option value="Десерт">Десерт</option>
+          <option value="Закуска">Закуска</option>
+          <option value="Предястие">Предястие</option>
+          <option value="Напитка">Напитка</option>
+          <option value="Друго">Друго</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Емоджи 🍽️</label>
+        <input type="text" id="fEmoji" placeholder="🍲" maxlength="4">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Време (мин)</label>
+        <input type="number" id="fTime" placeholder="45" min="1">
+      </div>
+      <div class="form-group">
+        <label>Порции</label>
+        <input type="number" id="fServings" placeholder="4" min="1">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Описание</label>
+      <textarea id="fDesc" placeholder="Кратко описание на ястието..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Продукти</label>
+      <ul class="ingredient-list" id="ingList"></ul>
+      <div class="add-row">
+        <input type="text" id="ingName" placeholder="Продукт (напр. брашно)">
+        <input type="text" id="ingAmount" placeholder="Количество" style="max-width:120px">
+        <button class="btn-sm" id="addIngBtn">+ Добави</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Стъпки за приготвяне</label>
+      <ul class="steps-list" id="stepList"></ul>
+      <div class="add-row">
+        <input type="text" id="stepText" placeholder="Опиши стъпката...">
+        <button class="btn-sm" id="addStepBtn">+ Добави</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="saveRecipeBtn">💾 Запази рецептата</button>
+  </div>
+</div>
+
+<!-- AI MODAL -->
+<div class="modal-overlay" id="aiModal">
+  <div class="modal ai-modal">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">✨ Gemini AI Готвач</h2>
+        <div style="font-size:0.75rem;color:var(--gray);margin-top:2px">Обсъди рецептата, нагласи я, после я запази</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="aiNewChatBtn" title="Нов разговор" style="background:var(--cream);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;color:var(--brown-mid)" title="Нов разговор">🔄</button>
+        <button class="modal-close" id="closeAiModal">✕</button>
+      </div>
+    </div>
+    <div class="gemini-key-row">
+      <label>🔑</label>
+      <input type="password" id="aiApiKey" placeholder="Gemini API ключ (от Настройки)">
+    </div>
+    <div class="ai-chat" id="aiChat">
+      <div class="ai-msg ai">Здравей! 🍳 Разкажи ми каква рецепта търсиш — съставки, ястие, диета, порции. Ще я нагласим заедно и после можеш да я запазиш директно.<br><br><em>Например: „Искам мак енд чийз — по-лека версия за 2 порции"</em></div>
+    </div>
+    <div class="ai-input-row">
+      <input type="text" id="aiInput" placeholder="Пиши тук...">
+      <button class="ai-send-btn" id="aiSendBtn">➤</button>
+    </div>
+    <!-- Save bar — shown when recipe is ready -->
+    <div id="aiSaveBar" style="display:none;margin-top:10px;background:#fff8ec;border:1.5px solid var(--amber-light);border-radius:var(--radius-sm);padding:12px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <span id="aiSaveTitle" style="font-family:var(--font-display);color:var(--brown);font-size:1rem"></span>
+          <span style="font-size:0.8rem;color:var(--gray);margin-left:8px">готова за запис</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="aiSaveDirectBtn" style="background:var(--green);color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.88rem">✅ Запази</button>
+          <button id="aiSaveEditBtn" style="background:var(--cream);color:var(--brown-mid);border:1.5px solid var(--amber-light);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.88rem">✏️ Редактирай</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="max-width:660px">
+    <div class="modal-header">
+      <h2 class="modal-title">📥 Импорт на рецепти</h2>
+      <button class="modal-close" id="closeImportModal">✕</button>
+    </div>
+
+    <!-- Import tabs -->
+    <div style="display:flex;gap:0;border:1.5px solid var(--amber-light);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:18px">
+      <button class="import-tab active" data-itab="text" style="flex:1;padding:10px;border:none;background:var(--amber);color:white;font-weight:600;font-size:0.88rem;cursor:pointer;transition:all 0.2s">📝 Свободен текст</button>
+      <button class="import-tab" data-itab="json" style="flex:1;padding:10px;border:none;background:var(--cream);color:var(--brown-mid);font-weight:600;font-size:0.88rem;cursor:pointer;transition:all 0.2s">{ } JSON</button>
+      <button class="import-tab" data-itab="file" style="flex:1;padding:10px;border:none;background:var(--cream);color:var(--brown-mid);font-weight:600;font-size:0.88rem;cursor:pointer;transition:all 0.2s">📂 Файл</button>
+    </div>
+
+    <!-- Tab: Free text -->
+    <div class="itab-panel" id="itab-text">
+      <div style="background:#fff8ec;border:1px solid var(--amber-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;font-size:0.82rem;color:var(--brown-mid);line-height:1.6">
+        ✨ <strong>Поддържа свободен формат</strong> — постави рецепта от интернет, от книга, или напиши на ръка. Gemini ще я разпознае автоматично.
+      </div>
+      <textarea id="importFreeText" placeholder="Заглавие: Мак енд Чийз&#10;Продукти:&#10;* 500 г макарони&#10;* 200 г чедър&#10;&#10;Инструкции:&#10;1. Загрейте фурната...&#10;2. ..." style="height:160px;margin-bottom:10px"></textarea>
+      <div class="gemini-key-row" id="importKeyRow">
+        <label>🔑</label>
+        <input type="password" id="importApiKey" placeholder="Gemini API ключ (незадължителен — без него се ползва локален парсър)">
+      </div>
+      <button class="btn-primary" id="parseTextBtn">✨ Разпознай рецептата</button>
+    </div>
+
+    <!-- Tab: JSON -->
+    <div class="itab-panel" id="itab-json" style="display:none">
+      <textarea id="importJsonText" placeholder='[{"title":"Мусака","category":"Основно ястие","ingredients":[...],"steps":[...]}]' style="height:180px;margin-bottom:10px"></textarea>
+      <button class="btn-primary" id="doImportJsonBtn">📥 Импортирай JSON</button>
+      <button class="btn-secondary" id="downloadSampleBtn">⬇️ Примерен JSON файл</button>
+    </div>
+
+    <!-- Tab: File -->
+    <div class="itab-panel" id="itab-file" style="display:none">
+      <div class="import-zone" id="importZone">
+        <div class="icon">📂</div>
+        <p><strong>Натисни или плъзни файл тук</strong></p>
+        <p>Поддържан формат: <strong>.json</strong></p>
+        <input type="file" id="importFile" accept=".json" style="display:none">
+      </div>
+      <div id="fileLoadedMsg" style="display:none;padding:10px 14px;background:#e8f5ea;border-radius:8px;font-size:0.88rem;color:var(--green);margin-bottom:10px"></div>
+      <button class="btn-primary" id="doImportFileBtn" style="display:none">📥 Импортирай файла</button>
+    </div>
+
+    <!-- Preview panel (shown after Gemini parse) -->
+    <div id="importPreview" style="display:none;margin-top:16px">
+      <div style="height:1px;background:var(--amber-light);margin-bottom:16px"></div>
+      <h3 style="font-family:var(--font-display);color:var(--brown);margin-bottom:14px;font-size:1.05rem">👀 Преглед на разпознатото</h3>
+      <div id="previewCard" style="background:var(--cream);border-radius:var(--radius-sm);padding:16px;font-size:0.88rem;line-height:1.7;max-height:260px;overflow-y:auto;border:1px solid var(--amber-light)"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn-primary" id="confirmImportBtn" style="flex:1;margin:0">✅ Запази рецептата</button>
+        <button class="btn-secondary" id="editBeforeImportBtn" style="flex:1;margin:0">✏️ Редактирай</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================
+// STORAGE — file://, http://, https:// safe
+// =====================
+const STORE_KEY = 'mk_recipes';
+const KEY_KEY   = 'mk_gemini_key';
+const _mem = {};
+const store = (() => {
+  const t = '__mk__';
+  try { localStorage.setItem(t,'1'); localStorage.removeItem(t); return localStorage; } catch(e) {}
+  try { sessionStorage.setItem(t,'1'); sessionStorage.removeItem(t); return sessionStorage; } catch(e) {}
+  return { getItem: k => _mem[k]||null, setItem: (k,v) => { _mem[k]=String(v); }, removeItem: k => { delete _mem[k]; } };
+})();
+
+// =====================
+// DATA & STATE
+// =====================
+let recipes = (() => { try { const d = JSON.parse(store.getItem(STORE_KEY) || '[]'); return Array.isArray(d) ? d : []; } catch(e) { return []; } })();
+let currentView = 'home';
+let currentRecipeId = null;
+let editingId = null;
+let ingredients = [];
+let steps = [];
+let selectedCategory = 'Всички';
+let searchQuery = '';
+
+function save() {
+  try { store.setItem(STORE_KEY, JSON.stringify(recipes)); } catch(e) {}
+}
+
+function getApiKey() {
+  return document.getElementById('aiApiKey').value || store.getItem(KEY_KEY) || '';
+}
+
+// =====================
+// VIEWS
+// =====================
+function showView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
+  document.getElementById('view-' + v).classList.add('active');
+  currentView = v;
+  document.getElementById('fabAdd').style.display = (v === 'detail' || v === 'settings') ? 'none' : 'flex';
+
+  if (v === 'home') renderGrid();
+  if (v === 'favorites') renderFavGrid();
+}
+
+document.querySelectorAll('.nav-tab').forEach(t => {
+  t.addEventListener('click', () => showView(t.dataset.view));
+});
+
+// =====================
+// RENDER GRID
+// =====================
+function getCategories() {
+  const cats = ['Всички', ...new Set(recipes.map(r => r.category))];
+  return cats;
+}
+
+function renderCategories() {
+  const el = document.getElementById('categoryChips');
+  el.innerHTML = getCategories().map(c => `
+    <button class="chip ${c === selectedCategory ? 'active' : ''}" data-cat="${c}">${c}</button>
+  `).join('');
+  el.querySelectorAll('.chip').forEach(ch => {
+    ch.addEventListener('click', () => { selectedCategory = ch.dataset.cat; renderCategories(); renderGrid(); });
+  });
+}
+
+function getFilteredRecipes() {
+  let list = recipes;
+  if (selectedCategory !== 'Всички') list = list.filter(r => r.category === selectedCategory);
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    list = list.filter(r => r.title.toLowerCase().includes(q) || (r.desc || '').toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function renderGrid() {
+  renderCategories();
+  const grid = document.getElementById('recipeGrid');
+  const empty = document.getElementById('emptyState');
+  const list = getFilteredRecipes();
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map(r => cardHTML(r)).join('');
+  grid.querySelectorAll('.recipe-card').forEach(c => {
+    c.addEventListener('click', () => openDetail(c.dataset.id));
+  });
+}
+
+function renderFavGrid() {
+  const grid = document.getElementById('favGrid');
+  const empty = document.getElementById('favEmpty');
+  const list = recipes.filter(r => r.fav);
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map(r => cardHTML(r)).join('');
+  grid.querySelectorAll('.recipe-card').forEach(c => {
+    c.addEventListener('click', () => openDetail(c.dataset.id));
+  });
+}
+
+function cardHTML(r) {
+  const stars = r.rating ? '⭐'.repeat(r.rating) : '';
+  return `
+    <div class="recipe-card" data-id="${r.id}">
+      <div class="card-img">${r.emoji || '🍽️'}</div>
+      <div class="card-body">
+        <div class="card-title">${r.title}</div>
+        <div class="card-meta">
+          <span class="badge amber">${r.category || 'Ястие'}</span>
+          ${r.time ? `<span class="badge">⏱ ${r.time} мин</span>` : ''}
+          ${r.servings ? `<span class="badge green">👤 ${r.servings}</span>` : ''}
+        </div>
+        <div class="card-desc">${r.desc || ''}</div>
+      </div>
+      ${stars ? `<div class="card-footer"><span class="stars">${stars}</span></div>` : ''}
+    </div>`;
+}
+
+// =====================
+// DETAIL VIEW
+// =====================
+function openDetail(id) {
+  const r = recipes.find(x => x.id === id);
+  if (!r) return;
+  currentRecipeId = id;
+  document.getElementById('detailEmoji').textContent = r.emoji || '🍽️';
+  document.getElementById('detailTitle').textContent = r.title;
+  document.getElementById('detailMeta').innerHTML = `
+    ${r.category ? `<span class="badge amber">${r.category}</span>` : ''}
+    ${r.time ? `<span class="badge">⏱ ${r.time} мин</span>` : ''}
+    ${r.servings ? `<span class="badge green">👤 ${r.servings} порции</span>` : ''}
+    ${r.fav ? '<span class="badge" style="background:#fff0f0;color:#e74c3c;border-color:#f1a0a0">❤️ Любима</span>' : ''}
+  `;
+  document.getElementById('detailDesc').textContent = r.desc || '';
+  document.getElementById('detailIngredients').innerHTML = (r.ingredients || []).map(i =>
+    `<li><span class="ing-name">${i.name}</span><span class="ing-amount">${i.amount}</span></li>`
+  ).join('');
+  document.getElementById('detailSteps').innerHTML = (r.steps || []).map(s =>
+    `<li><div class="step-num"></div><div class="step-txt">${s}</div></li>`
+  ).join('');
+
+  const favBtn = document.getElementById('detailFavBtn');
+  favBtn.textContent = r.fav ? '💔 Премахни от любими' : '❤️ Добави в любими';
+
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-detail').classList.add('active');
+  document.getElementById('fabAdd').style.display = 'none';
+  currentView = 'detail';
+  window.scrollTo(0, 0);
+}
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  showView('home');
+  document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+});
+
+document.getElementById('detailFavBtn').addEventListener('click', () => {
+  const r = recipes.find(x => x.id === currentRecipeId);
+  if (!r) return;
+  r.fav = !r.fav;
+  save();
+  openDetail(currentRecipeId);
+  showToast(r.fav ? '❤️ Добавено в любими' : 'Премахнато от любими');
+});
+
+document.getElementById('detailEditBtn').addEventListener('click', () => {
+  const r = recipes.find(x => x.id === currentRecipeId);
+  if (!r) return;
+  openAddModal(r);
+});
+
+function deleteCurrentRecipe() {
+  if (!confirm('Изтрий тази рецепта?')) return;
+  recipes = recipes.filter(x => x.id !== currentRecipeId);
+  save();
+  showView('home');
+  document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+  showToast('🗑️ Рецептата е изтрита');
+}
+
+// =====================
+// ADD / EDIT MODAL
+// =====================
+function openAddModal(recipe) {
+  editingId = recipe ? recipe.id : null;
+  ingredients = recipe ? [...(recipe.ingredients || [])] : [];
+  steps = recipe ? [...(recipe.steps || [])] : [];
+
+  document.getElementById('modalTitle').textContent = recipe ? 'Редактирай рецепта' : 'Нова рецепта';
+  document.getElementById('fTitle').value = recipe ? recipe.title : '';
+  document.getElementById('fCategory').value = recipe ? recipe.category : 'Основно ястие';
+  document.getElementById('fEmoji').value = recipe ? (recipe.emoji || '') : '';
+  document.getElementById('fTime').value = recipe ? (recipe.time || '') : '';
+  document.getElementById('fServings').value = recipe ? (recipe.servings || '') : '';
+  document.getElementById('fDesc').value = recipe ? (recipe.desc || '') : '';
+
+  renderIngList();
+  renderStepList();
+  document.getElementById('addModal').classList.add('open');
+}
+
+document.getElementById('fabAdd').addEventListener('click', () => openAddModal(null));
+document.getElementById('closeAddModal').addEventListener('click', () => document.getElementById('addModal').classList.remove('open'));
+document.getElementById('addModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+
+function renderIngList() {
+  document.getElementById('ingList').innerHTML = ingredients.map((i, idx) =>
+    `<li>🥬 <span>${i.name}</span> — <span style="color:var(--brown-mid);font-weight:600">${i.amount}</span>
+     <button class="del-btn" data-idx="${idx}">✕</button></li>`
+  ).join('');
+  document.querySelectorAll('#ingList .del-btn').forEach(b => {
+    b.addEventListener('click', () => { ingredients.splice(+b.dataset.idx, 1); renderIngList(); });
+  });
+}
+
+function renderStepList() {
+  document.getElementById('stepList').innerHTML = steps.map((s, idx) =>
+    `<li><span class="step-text">${s}</span><button class="del-btn" data-idx="${idx}">✕</button></li>`
+  ).join('');
+  document.querySelectorAll('#stepList .del-btn').forEach(b => {
+    b.addEventListener('click', () => { steps.splice(+b.dataset.idx, 1); renderStepList(); });
+  });
+}
+
+document.getElementById('addIngBtn').addEventListener('click', () => {
+  const n = document.getElementById('ingName').value.trim();
+  const a = document.getElementById('ingAmount').value.trim();
+  if (!n) return;
+  ingredients.push({ name: n, amount: a || '—' });
+  document.getElementById('ingName').value = '';
+  document.getElementById('ingAmount').value = '';
+  renderIngList();
+});
+document.getElementById('ingAmount').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addIngBtn').click(); });
+
+document.getElementById('addStepBtn').addEventListener('click', () => {
+  const t = document.getElementById('stepText').value.trim();
+  if (!t) return;
+  steps.push(t);
+  document.getElementById('stepText').value = '';
+  renderStepList();
+});
+document.getElementById('stepText').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addStepBtn').click(); });
+
+document.getElementById('saveRecipeBtn').addEventListener('click', () => {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { showToast('⚠️ Въведи заглавие'); return; }
+  const data = {
+    id: editingId || Date.now().toString(),
+    title,
+    category: document.getElementById('fCategory').value,
+    emoji: document.getElementById('fEmoji').value || '🍽️',
+    time: document.getElementById('fTime').value,
+    servings: document.getElementById('fServings').value,
+    desc: document.getElementById('fDesc').value,
+    ingredients: [...ingredients],
+    steps: [...steps],
+    fav: false,
+    created: new Date().toISOString()
+  };
+  if (editingId) {
+    const idx = recipes.findIndex(r => r.id === editingId);
+    const oldFav = idx >= 0 ? recipes[idx].fav : false;
+    data.fav = oldFav;
+    if (idx >= 0) recipes[idx] = data;
+  } else {
+    recipes.unshift(data);
+  }
+  save();
+  document.getElementById('addModal').classList.remove('open');
+  renderGrid();
+  showToast(editingId ? '✅ Рецептата е обновена' : '✅ Рецептата е запазена');
+});
+
+// =====================
+// AI / GEMINI — multi-turn conversation
+// =====================
+let aiHistory = [];   // [{role:'user'|'model', parts:[{text}]}]
+let lastAiRecipe = null;
+
+const AI_SYSTEM = 'Ти си опитен български готвач и AI асистент. Отговаряй САМО на български език. ' +
+'Помагаш на потребителя да измисли, уточни и нагласи рецепта — количества, съставки, стъпки. ' +
+'Водиш разговор докато рецептата е готова. ' +
+'ВАЖНО: Когато потребителят е доволен и рецептата е финализирана (или когато сам прецениш че е готова), ' +
+'включи в отговора си JSON блок точно така (без интервали преди/след): ' +
+'RECIPE_JSON_START{"title":"...","category":"Основно ястие/Супа/Салата/Десерт/Закуска/Предястие/Напитка/Друго",' +
+'"emoji":"...","time":45,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."]}RECIPE_JSON_END ' +
+'Категориите са само: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго.';
+
+function resetAiChat() {
+  aiHistory = [];
+  lastAiRecipe = null;
+  document.getElementById('aiSaveBar').style.display = 'none';
+  const chat = document.getElementById('aiChat');
+  chat.innerHTML = '<div class="ai-msg ai">Здравей! 🍳 Разкажи ми каква рецепта търсиш — съставки, ястие, диета, порции. Ще я нагласим заедно и после можеш да я запазиш директно.<br><br><em>Например: „Искам мак енд чийз — по-лека версия за 2 порции"</em></div>';
+}
+
+document.getElementById('btnAI').addEventListener('click', () => {
+  const key = store.getItem(KEY_KEY) || '';
+  document.getElementById('aiApiKey').value = key;
+  document.getElementById('aiModal').classList.add('open');
+  setTimeout(() => document.getElementById('aiInput').focus(), 300);
+});
+document.getElementById('closeAiModal').addEventListener('click', () => document.getElementById('aiModal').classList.remove('open'));
+document.getElementById('aiModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+document.getElementById('aiNewChatBtn').addEventListener('click', () => { if (confirm('Започни нов разговор? Текущият ще се изтрие.')) resetAiChat(); });
+
+document.getElementById('aiSendBtn').addEventListener('click', sendAiMessage);
+document.getElementById('aiInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendAiMessage(); });
+
+async function sendAiMessage() {
+  const input = document.getElementById('aiInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  const key = getApiKey();
+  if (!key) { showToast('⚠️ Въведи Gemini API ключ в Настройки'); return; }
+
+  input.value = '';
+  appendAiMsg('user', msg);
+  aiHistory.push({ role: 'user', parts: [{ text: msg }] });
+
+  const sendBtn = document.getElementById('aiSendBtn');
+  sendBtn.innerHTML = '<span class="spinner"></span>';
+  sendBtn.disabled = true;
+
+  // Build contents: system as first user turn (Gemini 1.5 style)
+  const contents = [
+    { role: 'user', parts: [{ text: AI_SYSTEM }] },
+    { role: 'model', parts: [{ text: 'Разбрах! Готов съм да помогна с рецептата.' }] },
+    ...aiHistory
+  ];
+
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        generationConfig: { temperature: 0.75, maxOutputTokens: 1800 }
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Нямам отговор.';
+
+    // Add to history
+    aiHistory.push({ role: 'model', parts: [{ text: rawReply }] });
+
+    // Extract recipe JSON if present
+    const recipeMatch = rawReply.match(/RECIPE_JSON_START(\{[\s\S]*?\})RECIPE_JSON_END/);
+    if (recipeMatch) {
+      try {
+        lastAiRecipe = JSON.parse(recipeMatch[1]);
+        showAiSaveBar(lastAiRecipe);
+      } catch(e) { console.warn('Recipe JSON parse error:', e); }
+    }
+
+    // Display: strip the JSON block from shown text
+    const displayText = rawReply
+      .replace(/RECIPE_JSON_START[\s\S]*?RECIPE_JSON_END/g, '')
+      .trim()
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    appendAiMsg('ai', displayText, true);
+
+  } catch(e) {
+    appendAiMsg('ai', '⚠️ Грешка: ' + e.message);
+  }
+
+  sendBtn.innerHTML = '➤';
+  sendBtn.disabled = false;
+}
+
+function showAiSaveBar(r) {
+  document.getElementById('aiSaveTitle').textContent = (r.emoji || '🍽️') + ' ' + (r.title || 'Рецепта');
+  document.getElementById('aiSaveBar').style.display = '';
+  // Scroll chat to show save bar
+  setTimeout(() => {
+    document.getElementById('aiSaveBar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 100);
+}
+
+function appendAiMsg(role, text, html = false) {
+  const chat = document.getElementById('aiChat');
+  const div = document.createElement('div');
+  div.className = 'ai-msg ' + role;
+  if (html) div.innerHTML = text;
+  else div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// Save directly
+document.getElementById('aiSaveDirectBtn').addEventListener('click', () => {
+  if (!lastAiRecipe) return;
+  const r = {
+    id: Date.now().toString(),
+    title: lastAiRecipe.title || 'AI Рецепта',
+    category: lastAiRecipe.category || 'Основно ястие',
+    emoji: lastAiRecipe.emoji || '🤖',
+    time: lastAiRecipe.time || '',
+    servings: lastAiRecipe.servings || '',
+    desc: lastAiRecipe.desc || '',
+    ingredients: lastAiRecipe.ingredients || [],
+    steps: lastAiRecipe.steps || [],
+    fav: false,
+    created: new Date().toISOString()
+  };
+  recipes.unshift(r);
+  save();
+  document.getElementById('aiModal').classList.remove('open');
+  showView('home');
+  document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+  showToast('✅ Рецептата е запазена!');
+  lastAiRecipe = null;
+  document.getElementById('aiSaveBar').style.display = 'none';
+});
+
+// Open in edit form before saving
+document.getElementById('aiSaveEditBtn').addEventListener('click', () => {
+  if (!lastAiRecipe) return;
+  document.getElementById('aiModal').classList.remove('open');
+  openAddModal(lastAiRecipe);
+});
+
+
+// =====================
+// SEARCH
+// =====================
+let searchVisible = false;
+document.getElementById('btnSearch').addEventListener('click', () => {
+  searchVisible = !searchVisible;
+  document.getElementById('searchBar').style.display = searchVisible ? '' : 'none';
+  if (searchVisible) document.getElementById('searchInput').focus();
+  else { searchQuery = ''; document.getElementById('searchInput').value = ''; renderGrid(); }
+});
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  renderGrid();
+});
+
+// =====================
+// IMPORT — TABS
+// =====================
+document.getElementById('btnImport').addEventListener('click', () => {
+  const key = store.getItem(KEY_KEY) || '';
+  document.getElementById('importApiKey').value = key;
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importModal').classList.add('open');
+});
+document.getElementById('closeImportModal').addEventListener('click', () => document.getElementById('importModal').classList.remove('open'));
+document.getElementById('importModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+
+// Tab switching
+document.querySelectorAll('.import-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.import-tab').forEach(t => {
+      t.style.background = 'var(--cream)';
+      t.style.color = 'var(--brown-mid)';
+    });
+    tab.style.background = 'var(--amber)';
+    tab.style.color = 'white';
+    document.querySelectorAll('.itab-panel').forEach(p => p.style.display = 'none');
+    document.getElementById('itab-' + tab.dataset.itab).style.display = '';
+    document.getElementById('importPreview').style.display = 'none';
+  });
+});
+
+// ---- LOCAL TEXT PARSER (no API needed) ----
+function localParseRecipe(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
+
+  // Title: first non-empty line, or after "Заглавие:"
+  let title = '';
+  const titleMatch = text.match(/(?:заглавие|название|рецепта)[:\s]+([^\n]+)/i);
+  if (titleMatch) title = titleMatch[1].trim();
+  else title = lines[0].replace(/^#+\s*/, '').replace(/\*+/g, '').trim();
+
+  // Time
+  let time = null;
+  const timeMatch = text.match(/(\d+)\s*(?:мин|минути|min)/i);
+  if (timeMatch) time = parseInt(timeMatch[1]);
+
+  // Servings
+  let servings = null;
+  const servMatch = text.match(/(\d+)\s*(?:порции|порц\.|serving|души)/i);
+  if (servMatch) servings = parseInt(servMatch[1]);
+
+  // Category guess
+  const catMap = [
+    [/супа|чорба|бульон/i, 'Супа'],
+    [/салата|салат/i, 'Салата'],
+    [/торта|кекс|десерт|сладк|бисквит|пудинг|крем/i, 'Десерт'],
+    [/закуска|сандвич|тост|омлет|палачинк/i, 'Закуска'],
+    [/напитка|сок|смути|коктейл/i, 'Напитка'],
+    [/предястие|мезе|апетитен/i, 'Предястие'],
+  ];
+  let category = 'Основно ястие';
+  for (const [re, cat] of catMap) { if (re.test(text)) { category = cat; break; } }
+
+  // Emoji guess
+  const emojiMap = [
+    [/пиле|кокошк/i,'🍗'],[/свинск|свинско/i,'🥩'],[/говежд/i,'🥩'],[/риба/i,'🐟'],
+    [/паста|макарон/i,'🍝'],[/пица/i,'🍕'],[/супа|чорба/i,'🍲'],[/салата/i,'🥗'],
+    [/торта|кекс/i,'🎂'],[/сладкиш|бисквит/i,'🍪'],[/баница/i,'🥐'],[/ориз/i,'🍚'],
+    [/яйц/i,'🥚'],[/гъб/i,'🍄'],[/картоф/i,'🥔'],[/десерт/i,'🍮'],
+  ];
+  let emoji = '🍽️';
+  const lowerText = text.toLowerCase();
+  for (const [re, em] of emojiMap) { if (re.test(lowerText)) { emoji = em; break; } }
+
+  // Ingredients — lines after "Продукти:" / "Съставки:" / "Необходими:" until next section
+  const ingredients = [];
+  let inIngredients = false, inSteps = false;
+  const ingSection = text.match(/(?:продукти|съставки|необходими|ingredients)[:\s]*\n([\s\S]*?)(?:\n(?:инструкции|начин|стъпки|приготвяне|preparation|directions)|$)/i);
+  if (ingSection) {
+    ingSection[1].split('\n').forEach(line => {
+      line = line.replace(/^[\*\-•·]\s*/, '').trim();
+      if (!line) return;
+      // Try to split "500 г брашно" or "брашно — 500 г"
+      const m1 = line.match(/^([\d\/½¼¾.,]+\s*(?:г|кг|мл|л|бр|с\.л\.|ч\.л\.|чаш[аи]|шепа|щипка|пакет|връзк[аи]|скилид[кц]|бр\.)?\s*[а-яА-Яa-zA-Z\s\(\)]*)/);
+      const m2 = line.match(/^([а-яА-Яa-zA-Z][а-яА-Яa-zA-Z\s\(\)]+)\s*[-—–:]\s*(.+)/);
+      if (m2) {
+        ingredients.push({ name: m2[1].trim(), amount: m2[2].trim() });
+      } else {
+        // Try "200г брашно" or "200 г брашно"
+        const m3 = line.match(/^([\d\/½¼¾.,]+\s*(?:г|кг|мл|л|бр|с\.л\.|ч\.л\.|чаши?|шепа|щипка|пакет)[а-яА-Я]?\.?)\s+(.+)/i);
+        if (m3) ingredients.push({ name: m3[2].trim(), amount: m3[1].trim() });
+        else ingredients.push({ name: line, amount: '' });
+      }
+    });
+  }
+
+  // Steps — numbered lines or after instructions section
+  const steps = [];
+  const stepSection = text.match(/(?:инструкции|начин|стъпки|приготвяне|preparation|directions)[:\s]*\n([\s\S]*?)$/i);
+  if (stepSection) {
+    stepSection[1].split('\n').forEach(line => {
+      line = line.replace(/^\d+[.)]\s*/, '').replace(/^[\*\-•·]\s*/, '').trim();
+      if (line.length > 3) steps.push(line);
+    });
+  } else {
+    // Fallback: grab numbered lines anywhere
+    lines.forEach(line => {
+      if (/^\d+[.)]\s+.{5,}/.test(line)) steps.push(line.replace(/^\d+[.)]\s*/, ''));
+    });
+  }
+
+  return { title, category, emoji, time, servings, desc: '', ingredients, steps };
+}
+
+document.getElementById('parseTextBtn').addEventListener('click', async () => {
+  const text = document.getElementById('importFreeText').value.trim();
+  if (!text) { showToast('⚠️ Постави текст на рецептата'); return; }
+
+  const btn = document.getElementById('parseTextBtn');
+  const key = document.getElementById('importApiKey').value.trim() || store.getItem(KEY_KEY) || '';
+
+  btn.disabled = true;
+  document.getElementById('importPreview').style.display = 'none';
+
+  // Try Gemini if key available
+  if (key) {
+    if (document.getElementById('importApiKey').value.trim()) store.setItem(KEY_KEY, key);
+    btn.innerHTML = '<span class="spinner"></span> Gemini разпознава...';
+    const prompt = 'Извлечи рецептата от следния текст и върни САМО валиден JSON обект, без никакви обяснения, без markdown, без ```json тагове - само чист JSON.\n' +
+    'JSON структурата трябва да е точно така:\n' +
+    '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"]}\n' +
+    'Текст на рецептата:\n' + text;
+    try {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      parsedImportRecipe = JSON.parse(rawText);
+      showImportPreview(parsedImportRecipe);
+      btn.innerHTML = '✨ Разпознай с Gemini';
+      btn.disabled = false;
+      return;
+    } catch(e) {
+      console.warn('Gemini неуспешен, използвам локален парсър:', e.message);
+    }
+  }
+
+  // LOCAL FALLBACK
+  btn.innerHTML = '<span class="spinner"></span> Локален парсър...';
+  await new Promise(r => setTimeout(r, 100)); // let UI update
+  parsedImportRecipe = localParseRecipe(text);
+  if (parsedImportRecipe && parsedImportRecipe.title) {
+    showImportPreview(parsedImportRecipe);
+    if (!key) showToast('ℹ️ Без API ключ — използван локален парсър');
+  } else {
+    showToast('⚠️ Не можах да разпозная рецептата');
+  }
+  btn.innerHTML = '✨ Разпознай с Gemini';
+  btn.disabled = false;
+});
+
+function showImportPreview(r) {
+  const preview = document.getElementById('previewCard');
+  preview.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="font-size:2.2rem">${r.emoji || '🍽️'}</span>
+      <div>
+        <strong style="font-family:var(--font-display);font-size:1.1rem;color:var(--brown)">${r.title}</strong><br>
+        <span style="color:var(--gray);font-size:0.8rem">${r.category || ''} ${r.time ? '· ⏱ '+r.time+' мин' : ''} ${r.servings ? '· 👤 '+r.servings+' порции' : ''}</span>
+      </div>
+    </div>
+    ${r.desc ? `<p style="color:var(--gray);margin-bottom:10px;font-style:italic">${r.desc}</p>` : ''}
+    <strong style="color:var(--brown-mid);font-size:0.8rem;text-transform:uppercase;letter-spacing:.05em">Продукти</strong>
+    <ul style="list-style:none;margin:6px 0 12px">
+      ${(r.ingredients||[]).map(i=>`<li style="padding:3px 0;border-bottom:1px solid rgba(200,118,58,.1)">🥬 ${i.name} <span style="float:right;color:var(--brown-mid);font-weight:600">${i.amount}</span></li>`).join('')}
+    </ul>
+    <strong style="color:var(--brown-mid);font-size:0.8rem;text-transform:uppercase;letter-spacing:.05em">Стъпки</strong>
+    <ol style="padding-left:18px;margin-top:6px">
+      ${(r.steps||[]).map(s=>`<li style="padding:3px 0">${s}</li>`).join('')}
+    </ol>
+  `;
+  document.getElementById('importPreview').style.display = '';
+}
+
+document.getElementById('confirmImportBtn').addEventListener('click', () => {
+  if (!parsedImportRecipe) return;
+  doSaveImported(parsedImportRecipe);
+});
+
+document.getElementById('editBeforeImportBtn').addEventListener('click', () => {
+  if (!parsedImportRecipe) return;
+  document.getElementById('importModal').classList.remove('open');
+  openAddModal(parsedImportRecipe); // open in edit modal for review
+});
+
+function doSaveImported(r) {
+  const rec = {
+    id: Date.now().toString(),
+    title: r.title || 'Импортирана рецепта',
+    category: r.category || 'Основно ястие',
+    emoji: r.emoji || '🍽️',
+    time: r.time || '',
+    servings: r.servings || '',
+    desc: r.desc || '',
+    ingredients: r.ingredients || [],
+    steps: r.steps || [],
+    fav: false,
+    created: new Date().toISOString()
+  };
+  recipes.unshift(rec);
+  save();
+  document.getElementById('importModal').classList.remove('open');
+  showView('home');
+  document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+  showToast('✅ Рецептата е импортирана!');
+  parsedImportRecipe = null;
+}
+
+// ---- TAB: JSON ----
+document.getElementById('doImportJsonBtn').addEventListener('click', () => {
+  const text = document.getElementById('importJsonText').value.trim();
+  if (!text) return;
+  try {
+    let data = JSON.parse(text);
+    if (!Array.isArray(data)) data = [data];
+    let count = 0;
+    data.forEach(r => {
+      if (!r.title) return;
+      r.id = r.id || Date.now().toString() + Math.random();
+      r.created = r.created || new Date().toISOString();
+      r.fav = r.fav || false;
+      recipes.unshift(r);
+      count++;
+    });
+    save();
+    document.getElementById('importModal').classList.remove('open');
+    showView('home');
+    document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+    showToast(`✅ Импортирани ${count} рецепти`);
+  } catch(e) {
+    showToast('⚠️ Невалиден JSON формат');
+  }
+});
+
+document.getElementById('downloadSampleBtn').addEventListener('click', () => {
+  const sample = JSON.stringify([{
+    title: "Домашна мусака",
+    category: "Основно ястие",
+    emoji: "🥘",
+    time: 90,
+    servings: 6,
+    desc: "Класическа българска мусака с кайма и картофи",
+    ingredients: [
+      { name: "кайма", amount: "500г" },
+      { name: "картофи", amount: "800г" },
+      { name: "яйца", amount: "3 бр" },
+      { name: "кисело мляко", amount: "400г" }
+    ],
+    steps: [
+      "Запържи каймата с лук до зачервяване",
+      "Нарежи картофите на кръгчета",
+      "Наредете на пластове в тавата",
+      "Залейте с яйца и кисело мляко",
+      "Печете на 180°C 45 минути"
+    ]
+  }], null, 2);
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(sample);
+  a.download = 'sample_recipe.json';
+  a.click();
+});
+
+// ---- TAB: FILE ----
+let loadedFileData = null;
+document.getElementById('importZone').addEventListener('click', () => document.getElementById('importFile').click());
+
+function readFileAsText(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = ev => res(ev.target.result);
+    r.onerror = rej;
+    r.readAsText(file);
+  });
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  const text = await readFileAsText(file);
+  loadedFileData = text;
+  document.getElementById('fileLoadedMsg').style.display = '';
+  document.getElementById('fileLoadedMsg').textContent = `📄 ${file.name} — готов за импорт`;
+  document.getElementById('doImportFileBtn').style.display = '';
+}
+
+document.getElementById('importFile').addEventListener('change', e => handleFile(e.target.files[0]));
+
+const importZone = document.getElementById('importZone');
+importZone.addEventListener('dragover', e => { e.preventDefault(); importZone.style.borderColor = 'var(--amber)'; });
+importZone.addEventListener('dragleave', () => { importZone.style.borderColor = ''; });
+importZone.addEventListener('drop', e => {
+  e.preventDefault();
+  importZone.style.borderColor = '';
+  handleFile(e.dataTransfer.files[0]);
+});
+
+document.getElementById('doImportFileBtn').addEventListener('click', () => {
+  if (!loadedFileData) return;
+  document.getElementById('importJsonText').value = loadedFileData;
+  // Switch to JSON tab and import
+  try {
+    let data = JSON.parse(loadedFileData);
+    if (!Array.isArray(data)) data = [data];
+    let count = 0;
+    data.forEach(r => {
+      if (!r.title) return;
+      r.id = r.id || Date.now().toString() + Math.random();
+      r.created = r.created || new Date().toISOString();
+      r.fav = r.fav || false;
+      recipes.unshift(r);
+      count++;
+    });
+    save();
+    document.getElementById('importModal').classList.remove('open');
+    showView('home');
+    document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+    showToast(`✅ Импортирани ${count} рецепти от файл`);
+    loadedFileData = null;
+  } catch(e) {
+    showToast('⚠️ Невалиден JSON файл');
+  }
+});
+
+// =====================
+// EXPORT
+// =====================
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(recipes, null, 2));
+  a.download = 'moite_recepti.json';
+  a.click();
+  showToast('⬇️ Рецептите са изтеглени');
+});
+
+// =====================
+// SETTINGS
+// =====================
+document.getElementById('saveApiKey').addEventListener('click', () => {
+  const k = document.getElementById('settingsApiKey').value.trim();
+  store.setItem(KEY_KEY, k);
+  showToast('🔑 API ключът е запазен');
+});
+
+// Load saved key
+const savedKey = store.getItem(KEY_KEY) || '';
+if (savedKey) {
+  document.getElementById('settingsApiKey').value = savedKey;
+  document.getElementById('aiApiKey').value = savedKey;
+}
+
+function clearAll() {
+  if (!confirm('Изтрий всички рецепти? Действието не може да се отмени!')) return;
+  recipes = [];
+  save();
+  renderGrid();
+  showToast('🗑️ Всички рецепти са изтрити');
+}
+
+// =====================
+// TOAST
+// =====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// =====================
+// SAMPLE DATA (first run)
+// =====================
+const SAMPLE_RECIPES = [
+  {
+    id: 's1', title: 'Домашна мусака', category: 'Основно ястие', emoji: '🥘',
+    time: 90, servings: 6, desc: 'Класическата мусака — с кайма, картофи и кисело мляко.',
+    ingredients: [
+      {name:'кайма',amount:'500г'},{name:'картофи',amount:'800г'},
+      {name:'лук',amount:'2 бр'},{name:'яйца',amount:'3 бр'},{name:'кисело мляко',amount:'400г'}
+    ],
+    steps: ['Запържи каймата с лук','Нарежи картофите на кръгчета','Наредете на пластове в тавата','Залейте с разбити яйца и кисело мляко','Печете на 180°C за 45 мин'],
+    fav: true, created: new Date().toISOString()
+  },
+  {
+    id: 's2', title: 'Шоколадова торта', category: 'Десерт', emoji: '🎂',
+    time: 60, servings: 10, desc: 'Невероятно влажна шоколадова торта с ганаш.',
+    ingredients: [
+      {name:'брашно',amount:'200г'},{name:'захар',amount:'180г'},
+      {name:'какао',amount:'60г'},{name:'яйца',amount:'3 бр'},{name:'масло',amount:'100г'}
+    ],
+    steps: ['Смесете сухите съставки','Разбийте яйцата с разтопеното масло','Смесете всичко до гладко тесто','Печете на 170°C за 35 мин','Полейте с ганаш след изстиване'],
+    fav: false, created: new Date().toISOString()
+  },
+  {
+    id: 's3', title: 'Таратор', category: 'Супа', emoji: '🥒',
+    time: 10, servings: 4, desc: 'Освежаваща студена супа — идеална за лято.',
+    ingredients: [
+      {name:'кисело мляко',amount:'500г'},{name:'краставица',amount:'1 бр'},
+      {name:'чесън',amount:'2 скилидки'},{name:'орехи',amount:'шепа'},{name:'копър',amount:'на вкус'}
+    ],
+    steps: ['Настържете краставицата','Смесете с кисело мляко','Добавете наситнен чесън и копър','Разредете с студена вода','Сервирайте веднага студено'],
+    fav: true, created: new Date().toISOString()
+  },
+  {
+    id: 's4', title: 'Баница', category: 'Закуска', emoji: '🥐',
+    time: 45, servings: 8, desc: 'Класическа баница с яйца и сирене.',
+    ingredients: [
+      {name:'кори за баница',amount:'500г'},{name:'сирене',amount:'400г'},
+      {name:'яйца',amount:'4 бр'},{name:'масло',amount:'100г'},{name:'кисело мляко',amount:'200г'}
+    ],
+    steps: ['Натрошете сиренето с яйцата','Намажете всяка кора с масло','Наредете с пълнеж и навийте','Наредете в тава','Печете на 200°C за 30-35 мин до златисто'],
+    fav: false, created: new Date().toISOString()
+  }
+];
+
+if (!recipes.length) {
+  recipes = SAMPLE_RECIPES;
+  save();
+}
+
+// =====================
+// GOOGLE DRIVE SYNC
+// =====================
+const DRIVE_FILE_NAME = 'moята_кухня_recepti.json';
+const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const DEFAULT_CLIENT_ID = '828797600775-aei6ubrclcdbalm9gkmot38td406329n.apps.googleusercontent.com';
+let driveToken = null;
+let driveFileId = store.getItem('mk_drive_file_id') || null;
+let driveAutoEnabled = store.getItem('mk_drive_auto') === '1';
+
+// Init Drive UI
+function initDriveUI() {
+  const clientId = store.getItem('mk_drive_client_id') || '';
+  if (!clientId) {
+    document.getElementById('driveClientIdRow').style.display = '';
+    document.getElementById('driveAuthBtn').style.display = 'none';
+  }
+  if (driveToken) {
+    document.getElementById('driveStatusLabel').textContent = '✅ Свързано с Google Drive';
+    document.getElementById('driveStatusSub').textContent = store.getItem('mk_drive_email') || 'Синхронизацията е активна';
+    document.getElementById('driveAuthBtn').textContent = '🔓 Изключи';
+    document.getElementById('driveAuthBtn').style.background = '#c0392b';
+    document.getElementById('driveSyncRow').style.display = '';
+    document.getElementById('driveAutoRow').style.display = '';
+    document.getElementById('driveClientIdRow').style.display = 'none';
+  }
+  const lastSync = store.getItem('mk_drive_last_sync');
+  if (lastSync) document.getElementById('driveLastSync').textContent = 'Последна синхронизация: ' + new Date(lastSync).toLocaleString('bg-BG');
+  document.getElementById('driveAutoSync').checked = driveAutoEnabled;
+  updateDriveToggle();
+}
+
+function updateDriveToggle() {
+  document.getElementById('driveToggle').style.background = driveAutoEnabled ? 'var(--green)' : '#ccc';
+}
+
+document.getElementById('saveDriveClientId').addEventListener('click', () => {
+  const id = document.getElementById('driveClientId').value.trim();
+  if (!id) return;
+  store.setItem('mk_drive_client_id', id);
+  document.getElementById('driveClientIdRow').style.display = 'none';
+  document.getElementById('driveAuthBtn').style.display = '';
+  showToast('✅ Client ID запазен');
+});
+
+document.getElementById('driveAuthBtn').addEventListener('click', () => {
+  if (driveToken) {
+    // Disconnect
+    driveToken = null;
+    store.removeItem('mk_drive_email');
+    document.getElementById('driveStatusLabel').textContent = 'Не сте свързани';
+    document.getElementById('driveStatusSub').textContent = 'Влез с Google акаунт за автоматична синхронизация';
+    document.getElementById('driveAuthBtn').textContent = '🔗 Свържи';
+    document.getElementById('driveAuthBtn').style.background = 'var(--green)';
+    document.getElementById('driveSyncRow').style.display = 'none';
+    document.getElementById('driveAutoRow').style.display = 'none';
+    showToast('🔓 Google Drive е изключен');
+    return;
+  }
+  const clientId = store.getItem('mk_drive_client_id') || DEFAULT_CLIENT_ID;
+  driveSignIn(clientId);
+});
+
+function driveSignIn(clientId) {
+  if (!window.google) { showToast('⚠️ Google скриптът не е зареден'); return; }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: DRIVE_SCOPES + ' https://www.googleapis.com/auth/userinfo.email',
+    callback: async (resp) => {
+      if (resp.error) { showToast('⚠️ ' + resp.error); return; }
+      driveToken = resp.access_token;
+      // Get user email
+      try {
+        const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + driveToken }
+        });
+        const u = await r.json();
+        store.setItem('mk_drive_email', u.email || '');
+      } catch(e) {}
+      initDriveUI();
+      showToast('✅ Свързано с Google Drive!');
+      // Auto-download on connect
+      await driveDownload(true);
+    }
+  });
+  client.requestAccessToken();
+}
+
+// Find or create the app data file
+async function driveGetFileId() {
+  if (driveFileId) return driveFileId;
+  // Search in appDataFolder
+  const r = await fetch(
+    "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='" + DRIVE_FILE_NAME + "'&fields=files(id,name)",
+    { headers: { Authorization: 'Bearer ' + driveToken } }
+  );
+  const d = await r.json();
+  if (d.files && d.files.length) {
+    driveFileId = d.files[0].id;
+    store.setItem('mk_drive_file_id', driveFileId);
+    return driveFileId;
+  }
+  return null;
+}
+
+async function driveUpload(silent = false) {
+  if (!driveToken) { if (!silent) showToast('⚠️ Не сте свързани с Drive'); return; }
+  if (!silent) showToast('⬆️ Качвам...');
+  try {
+    const content = JSON.stringify(recipes, null, 2);
+    const blob = new Blob([content], { type: 'application/json' });
+    const fileId = await driveGetFileId();
+
+    if (fileId) {
+      // Update existing
+      await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
+        body: blob
+      });
+    } else {
+      // Create new in appDataFolder
+      const meta = JSON.stringify({ name: DRIVE_FILE_NAME, parents: ['appDataFolder'] });
+      const form = new FormData();
+      form.append('metadata', new Blob([meta], { type: 'application/json' }));
+      form.append('file', blob);
+      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + driveToken },
+        body: form
+      });
+      const d = await r.json();
+      driveFileId = d.id;
+      store.setItem('mk_drive_file_id', driveFileId);
+    }
+
+    const now = new Date().toISOString();
+    store.setItem('mk_drive_last_sync', now);
+    document.getElementById('driveLastSync').textContent = 'Последна синхронизация: ' + new Date(now).toLocaleString('bg-BG');
+    if (!silent) showToast('☁️ Запазено в Google Drive (' + recipes.length + ' рецепти)');
+  } catch(e) {
+    if (!silent) showToast('⚠️ Drive грешка: ' + e.message);
+  }
+}
+
+async function driveDownload(silent = false) {
+  if (!driveToken) { if (!silent) showToast('⚠️ Не сте свързани с Drive'); return; }
+  if (!silent) showToast('⬇️ Сваляме от Drive...');
+  try {
+    const fileId = await driveGetFileId();
+    if (!fileId) {
+      if (!silent) showToast('ℹ️ Няма файл в Drive — ще се създаде при следващо запазване');
+      return;
+    }
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+      headers: { Authorization: 'Bearer ' + driveToken }
+    });
+    const data = await r.json();
+    if (!Array.isArray(data)) throw new Error('Невалиден формат');
+
+    // Merge: Drive data wins for newer records, keep local if newer
+    const merged = mergeRecipes(recipes, data);
+    recipes = merged;
+    save();
+    renderGrid();
+    const now = new Date().toISOString();
+    store.setItem('mk_drive_last_sync', now);
+    document.getElementById('driveLastSync').textContent = 'Последна синхронизация: ' + new Date(now).toLocaleString('bg-BG');
+    if (!silent) showToast('✅ Синхронизирано (' + recipes.length + ' рецепти)');
+  } catch(e) {
+    if (!silent) showToast('⚠️ Drive грешка: ' + e.message);
+  }
+}
+
+// Merge local + drive — newer record wins by created/updated date
+function mergeRecipes(local, remote) {
+  const map = new Map();
+  [...local, ...remote].forEach(r => {
+    const existing = map.get(r.id);
+    if (!existing || new Date(r.created) >= new Date(existing.created)) {
+      map.set(r.id, r);
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => new Date(b.created) - new Date(a.created));
+}
+
+document.getElementById('driveUploadBtn').addEventListener('click', () => driveUpload(false));
+document.getElementById('driveDownloadBtn').addEventListener('click', () => driveDownload(false));
+
+document.getElementById('driveAutoSync').addEventListener('change', e => {
+  driveAutoEnabled = e.target.checked;
+  store.setItem('mk_drive_auto', driveAutoEnabled ? '1' : '0');
+  updateDriveToggle();
+  showToast(driveAutoEnabled ? '✅ Автоматично запазване включено' : 'Автоматично запазване изключено');
+});
+
+// Patch save() to auto-upload
+const _origSave = save;
+function save() {
+  _origSave();
+  if (driveToken && driveAutoEnabled) {
+    driveUpload(true);
+  }
+}
+
+// Load saved client ID in field
+const savedClientId = store.getItem('mk_drive_client_id') || '';
+if (savedClientId) document.getElementById('driveClientId').value = savedClientId;
+
+// =====================
+// GOOGLE DRIVE SYNC
+// =====================
+
+renderGrid();
+console.log('[МоятаКухня] Заредени рецепти:', recipes.length);
+initDriveUI();
+</script>
+</body>
+</html>
