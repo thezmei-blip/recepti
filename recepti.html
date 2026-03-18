@@ -1105,9 +1105,10 @@
 
     <!-- Import tabs -->
     <div style="display:flex;gap:0;border:1.5px solid var(--amber-light);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:18px">
-      <button class="import-tab active" data-itab="text" style="flex:1;padding:10px;border:none;background:var(--amber);color:white;font-weight:600;font-size:0.88rem;cursor:pointer;transition:all 0.2s">📝 Свободен текст</button>
-      <button class="import-tab" data-itab="json" style="flex:1;padding:10px;border:none;background:var(--cream);color:var(--brown-mid);font-weight:600;font-size:0.88rem;cursor:pointer;transition:all 0.2s">{ } JSON</button>
-      <button class="import-tab" data-itab="file" style="flex:1;padding:10px;border:none;background:var(--cream);color:var(--brown-mid);font-weight:600;font-size:0.88rem;cursor:pointer;transition:all 0.2s">📂 Файл</button>
+      <button class="import-tab active" data-itab="text" style="flex:1;padding:10px;border:none;background:var(--amber);color:white;font-weight:600;font-size:0.82rem;cursor:pointer;transition:all 0.2s">📝 Текст</button>
+      <button class="import-tab" data-itab="url" style="flex:1;padding:10px;border:none;background:var(--cream);color:var(--brown-mid);font-weight:600;font-size:0.82rem;cursor:pointer;transition:all 0.2s">🔗 Линк</button>
+      <button class="import-tab" data-itab="json" style="flex:1;padding:10px;border:none;background:var(--cream);color:var(--brown-mid);font-weight:600;font-size:0.82rem;cursor:pointer;transition:all 0.2s">{ } JSON</button>
+      <button class="import-tab" data-itab="file" style="flex:1;padding:10px;border:none;background:var(--cream);color:var(--brown-mid);font-weight:600;font-size:0.82rem;cursor:pointer;transition:all 0.2s">📂 Файл</button>
     </div>
 
     <!-- Tab: Free text -->
@@ -1121,6 +1122,23 @@
         <input type="password" id="importApiKey" placeholder="Gemini API ключ (незадължителен — без него се ползва локален парсър)">
       </div>
       <button class="btn-primary" id="parseTextBtn">✨ Разпознай рецептата</button>
+    </div>
+
+    <!-- Tab: URL -->
+    <div class="itab-panel" id="itab-url" style="display:none">
+      <div style="background:#fff8ec;border:1px solid var(--amber-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;font-size:0.82rem;color:var(--brown-mid);line-height:1.6">
+        🔗 <strong>Импорт от линк</strong> — постави URL на рецепта от интернет. Gemini ще извлече автоматично продуктите и стъпките.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="url" id="importUrlInput" placeholder="https://www.example.com/recepti/musaka" style="flex:1">
+        <button id="fetchUrlBtn" style="background:var(--brown-mid);color:white;border:none;padding:10px 16px;border-radius:var(--radius-sm);cursor:pointer;font-weight:600;font-size:0.88rem;white-space:nowrap;transition:background var(--transition)">🔗 Зареди</button>
+      </div>
+      <div id="urlStatusMsg" style="display:none;padding:10px 14px;border-radius:var(--radius-sm);font-size:0.85rem;margin-bottom:10px"></div>
+      <div class="gemini-key-row">
+        <label>🔑</label>
+        <input type="password" id="importUrlApiKey" placeholder="Gemini API ключ (задължителен за линк импорт)">
+      </div>
+      <button class="btn-primary" id="parseUrlBtn" style="display:none">✨ Разпознай с Gemini</button>
     </div>
 
     <!-- Tab: JSON -->
@@ -1736,6 +1754,105 @@ document.querySelectorAll('.import-tab').forEach(tab => {
     document.getElementById('itab-' + tab.dataset.itab).style.display = '';
     document.getElementById('importPreview').style.display = 'none';
   });
+});
+
+// Also pre-fill URL tab API key
+document.getElementById('btnImport').addEventListener('click', () => {
+  const key = store.getItem(KEY_KEY) || '';
+  document.getElementById('importUrlApiKey').value = key;
+}, true);
+
+// ---- TAB: URL IMPORT ----
+let fetchedUrlText = '';
+
+document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
+  const url = document.getElementById('importUrlInput').value.trim();
+  if (!url) { showToast('⚠️ Въведи URL адрес'); return; }
+
+  const btn = document.getElementById('fetchUrlBtn');
+  const status = document.getElementById('urlStatusMsg');
+  btn.innerHTML = '<span class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:white"></span>';
+  btn.disabled = true;
+  status.style.display = 'none';
+  document.getElementById('parseUrlBtn').style.display = 'none';
+  document.getElementById('importPreview').style.display = 'none';
+  fetchedUrlText = '';
+
+  try {
+    // Use allorigins proxy to bypass CORS
+    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl);
+    const data = await res.json();
+
+    if (!data.contents) throw new Error('Страницата не може да се зареди');
+
+    // Strip HTML tags and clean up text
+    const tmp = document.createElement('div');
+    tmp.innerHTML = data.contents;
+    // Remove scripts, styles, nav, footer
+    tmp.querySelectorAll('script,style,nav,footer,header,aside,.ad,.advertisement').forEach(el => el.remove());
+    const text = tmp.innerText || tmp.textContent || '';
+    // Clean excessive whitespace
+    fetchedUrlText = text.replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim().slice(0, 8000);
+
+    if (fetchedUrlText.length < 100) throw new Error('Не намерих текст на страницата');
+
+    status.style.display = '';
+    status.style.background = '#e8f5ea';
+    status.style.color = 'var(--green)';
+    status.style.border = '1px solid var(--green-light)';
+    status.textContent = '✅ Страницата е заредена (' + fetchedUrlText.length + ' символа). Натисни „Разпознай" за да извлечем рецептата.';
+    document.getElementById('parseUrlBtn').style.display = '';
+
+  } catch(e) {
+    status.style.display = '';
+    status.style.background = '#fdecea';
+    status.style.color = '#c0392b';
+    status.style.border = '1px solid #f1a0a0';
+    status.textContent = '⚠️ ' + e.message;
+  }
+
+  btn.innerHTML = '🔗 Зареди';
+  btn.disabled = false;
+});
+
+document.getElementById('parseUrlBtn').addEventListener('click', async () => {
+  if (!fetchedUrlText) return;
+  const key = document.getElementById('importUrlApiKey').value.trim() || store.getItem(KEY_KEY) || '';
+  if (!key) { showToast('⚠️ Въведи Gemini API ключ'); return; }
+  if (document.getElementById('importUrlApiKey').value.trim()) store.setItem(KEY_KEY, key);
+
+  const btn = document.getElementById('parseUrlBtn');
+  btn.innerHTML = '<span class="spinner"></span> Gemini разпознава...';
+  btn.disabled = true;
+  document.getElementById('importPreview').style.display = 'none';
+
+  const prompt = 'Извлечи рецептата от следния текст на уеб страница и върни САМО валиден JSON обект, без никакви обяснения, без markdown, без ```json тагове - само чист JSON.\n' +
+  'JSON структурата трябва да е точно така:\n' +
+  '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение описание","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"]}\n' +
+  'Текст от страницата:\n' + fetchedUrlText;
+
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 1500 }
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    parsedImportRecipe = JSON.parse(rawText);
+    showImportPreview(parsedImportRecipe);
+  } catch(e) {
+    showToast('⚠️ Грешка: ' + e.message);
+  }
+
+  btn.innerHTML = '✨ Разпознай с Gemini';
+  btn.disabled = false;
 });
 
 // ---- LOCAL TEXT PARSER (no API needed) ----
