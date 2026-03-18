@@ -1526,8 +1526,10 @@ document.getElementById('saveRecipeBtn').addEventListener('click', () => {
 // =====================
 // AI / GEMINI — multi-turn conversation
 // =====================
-let aiHistory = [];   // [{role:'user'|'model', parts:[{text}]}]
+let aiHistory = [];
 let lastAiRecipe = null;
+let lastAiCallTime = 0;
+const AI_MIN_INTERVAL = 12000; // 12 seconds between calls (5 RPM limit)
 
 const AI_SYSTEM = 'Ти си опитен български готвач и AI асистент. Отговаряй САМО на български език. ' +
 'Помагаш на потребителя да измисли, уточни и нагласи рецепта — количества, съставки, стъпки. ' +
@@ -1574,6 +1576,19 @@ async function sendAiMessage() {
   sendBtn.innerHTML = '<span class="spinner"></span>';
   sendBtn.disabled = true;
 
+  // Rate limit check
+  const now = Date.now();
+  const wait = AI_MIN_INTERVAL - (now - lastAiCallTime);
+  if (wait > 0) {
+    appendAiMsg('ai', `⏳ Изчакай ${Math.ceil(wait/1000)} сек...`);
+    await new Promise(r => setTimeout(r, wait));
+    // Remove the wait message
+    const chat = document.getElementById('aiChat');
+    const msgs = chat.querySelectorAll('.ai-msg.ai');
+    if (msgs.length) msgs[msgs.length-1].remove();
+  }
+  lastAiCallTime = Date.now();
+
   // Build contents: system as first user turn (Gemini 1.5 style)
   const contents = [
     { role: 'user', parts: [{ text: AI_SYSTEM }] },
@@ -1582,7 +1597,7 @@ async function sendAiMessage() {
   ];
 
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' + key, {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=' + key, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1826,7 +1841,7 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
     '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"]}\n' +
     'Текст на рецептата:\n' + text;
     try {
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' + key, {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=' + key, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
