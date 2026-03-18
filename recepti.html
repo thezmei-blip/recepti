@@ -1848,10 +1848,10 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
   btn.disabled = true;
   document.getElementById('importPreview').style.display = 'none';
 
-  const prompt = 'Извлечи рецептата от следния текст на уеб страница и върни САМО валиден JSON обект, без никакви обяснения, без markdown, без ```json тагове - само чист JSON.\n' +
-  'JSON структурата трябва да е точно така:\n' +
-  '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение описание","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"]}\n' +
-  'Текст от страницата:\n' + fetchedUrlText;
+  const prompt = 'Извлечи рецептата от текста и върни САМО валиден JSON. Без обяснения. Без markdown. Само JSON.\n' +
+  'Формат: {"title":"...","category":"Основно ястие","emoji":"🍽️","time":30,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."]}\n' +
+  'Категории: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго.\n' +
+  'Текст:\n' + fetchedUrlText.slice(0, 5000);
 
   try {
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
@@ -1859,7 +1859,7 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 1500 }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 3000 }
       })
     });
     const data = await res.json();
