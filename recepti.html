@@ -1865,7 +1865,14 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    // Strip any markdown fences
+    rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    // Find JSON object in response (in case there's extra text)
+    const jsonStart = rawText.indexOf('{');
+    const jsonEnd = rawText.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      rawText = rawText.slice(jsonStart, jsonEnd + 1);
+    }
     parsedImportRecipe = JSON.parse(rawText);
     showImportPreview(parsedImportRecipe);
   } catch(e) {
@@ -1990,7 +1997,10 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
       let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+      const jsonStart = rawText.indexOf('{');
+      const jsonEnd = rawText.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) rawText = rawText.slice(jsonStart, jsonEnd + 1);
       parsedImportRecipe = JSON.parse(rawText);
       showImportPreview(parsedImportRecipe);
       btn.innerHTML = '✨ Разпознай с Gemini';
