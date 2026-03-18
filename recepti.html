@@ -1121,10 +1121,6 @@ let steps = [];
 let selectedCategory = 'Всички';
 let searchQuery = '';
 
-function save() {
-  try { store.setItem(STORE_KEY, JSON.stringify(recipes)); } catch(e) {}
-}
-
 function getApiKey() {
   return document.getElementById('aiApiKey').value || store.getItem(KEY_KEY) || '';
 }
@@ -2180,10 +2176,13 @@ document.getElementById('driveAutoSync').addEventListener('change', e => {
   showToast(driveAutoEnabled ? '✅ Автоматично запазване включено' : 'Автоматично запазване изключено');
 });
 
-// Patch save() to auto-upload
-const _origSave = save;
+// Auto-upload on save — uses storeSave to avoid recursion
+function storeSave() {
+  try { store.setItem(STORE_KEY, JSON.stringify(recipes)); } catch(e) {}
+}
+
 function save() {
-  _origSave();
+  storeSave();
   if (driveToken && driveAutoEnabled) {
     driveUpload(true);
   }
