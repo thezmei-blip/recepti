@@ -1438,7 +1438,7 @@ async function sendAiMessage() {
   ];
 
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' + key, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1677,7 +1677,7 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
     '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"]}\n' +
     'Текст на рецептата:\n' + text;
     try {
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' + key, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2043,13 +2043,17 @@ document.getElementById('driveAuthBtn').addEventListener('click', () => {
   driveSignIn(clientId);
 });
 
-function driveSignIn(clientId) {
-  if (!window.google) { showToast('⚠️ Google скриптът не е зареден'); return; }
+function driveSignIn(clientId, silent = false) {
+  if (!window.google) { if (!silent) showToast('⚠️ Google скриптът не е зареден'); return; }
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope: DRIVE_SCOPES + ' https://www.googleapis.com/auth/userinfo.email',
+    prompt: silent ? 'none' : '',
     callback: async (resp) => {
-      if (resp.error) { showToast('⚠️ ' + resp.error); return; }
+      if (resp.error) {
+        if (!silent) showToast('⚠️ ' + resp.error);
+        return;
+      }
       driveToken = resp.access_token;
       // Get user email
       try {
@@ -2060,12 +2064,25 @@ function driveSignIn(clientId) {
         store.setItem('mk_drive_email', u.email || '');
       } catch(e) {}
       initDriveUI();
-      showToast('✅ Свързано с Google Drive!');
+      if (!silent) showToast('✅ Свързано с Google Drive!');
       // Auto-download on connect
       await driveDownload(true);
     }
   });
   client.requestAccessToken();
+}
+
+// Auto-reconnect on page load if user was previously connected
+function driveAutoReconnect() {
+  const email = store.getItem('mk_drive_email');
+  if (!email) return; // never connected
+  const clientId = store.getItem('mk_drive_client_id') || DEFAULT_CLIENT_ID;
+  if (!window.google) {
+    // Wait for Google script to load
+    setTimeout(driveAutoReconnect, 1000);
+    return;
+  }
+  driveSignIn(clientId, true);
 }
 
 // Find or create the app data file
@@ -2199,6 +2216,8 @@ if (savedClientId) document.getElementById('driveClientId').value = savedClientI
 renderGrid();
 console.log('[МоятаКухня] Заредени рецепти:', recipes.length);
 initDriveUI();
+// Auto-reconnect to Drive if previously connected
+setTimeout(driveAutoReconnect, 1500);
 </script>
 </body>
 </html>
