@@ -4,8 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#1a0a00">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Моята Кухня">
+<meta name="description" content="Моята Кухня — лично приложение за рецепти">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Моята Кухня</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2459,11 +2464,10 @@ let driveAutoEnabled = store.getItem('mk_drive_auto') === '1';
 
 // Init Drive UI
 function initDriveUI() {
-  const clientId = store.getItem('mk_drive_client_id') || '';
-  if (!clientId) {
-    document.getElementById('driveClientIdRow').style.display = '';
-    document.getElementById('driveAuthBtn').style.display = 'none';
-  }
+  // Client ID is hardcoded — always show connect button
+  document.getElementById('driveClientIdRow').style.display = 'none';
+  document.getElementById('driveAuthBtn').style.display = '';
+
   if (driveToken) {
     document.getElementById('driveStatusLabel').textContent = '✅ Свързано с Google Drive';
     document.getElementById('driveStatusSub').textContent = store.getItem('mk_drive_email') || 'Синхронизацията е активна';
@@ -2471,7 +2475,6 @@ function initDriveUI() {
     document.getElementById('driveAuthBtn').style.background = '#c0392b';
     document.getElementById('driveSyncRow').style.display = '';
     document.getElementById('driveAutoRow').style.display = '';
-    document.getElementById('driveClientIdRow').style.display = 'none';
   }
   const lastSync = store.getItem('mk_drive_last_sync');
   if (lastSync) document.getElementById('driveLastSync').textContent = 'Последна синхронизация: ' + new Date(lastSync).toLocaleString('bg-BG');
@@ -2512,16 +2515,20 @@ document.getElementById('driveAuthBtn').addEventListener('click', () => {
 
 function driveSignIn(clientId, silent = false) {
   if (!window.google) { if (!silent) showToast('⚠️ Google скриптът не е зареден'); return; }
+  const email = store.getItem('mk_drive_email') || '';
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope: DRIVE_SCOPES + ' https://www.googleapis.com/auth/userinfo.email',
     prompt: silent ? 'none' : '',
+    hint: email || undefined,
     callback: async (resp) => {
       if (resp.error) {
         if (!silent) showToast('⚠️ ' + resp.error);
         return;
       }
       driveToken = resp.access_token;
+      // Schedule token refresh 55 min later (token lasts 60 min)
+      setTimeout(() => driveAutoReconnect(), 55 * 60 * 1000);
       // Get user email
       try {
         const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -2531,25 +2538,24 @@ function driveSignIn(clientId, silent = false) {
         store.setItem('mk_drive_email', u.email || '');
       } catch(e) {}
       initDriveUI();
-      if (!silent) showToast('✅ Свързано с Google Drive!');
-      // Auto-download on connect
-      await driveDownload(true);
+      if (!silent) {
+        showToast('✅ Свързано с Google Drive!');
+        await driveDownload(true);
+      }
     }
   });
   client.requestAccessToken();
 }
 
-// Auto-reconnect on page load if user was previously connected
+// Auto-reconnect on page load and every 55 min
 function driveAutoReconnect() {
   const email = store.getItem('mk_drive_email');
-  if (!email) return; // never connected
-  const clientId = store.getItem('mk_drive_client_id') || DEFAULT_CLIENT_ID;
+  if (!email) return; // never connected before
   if (!window.google) {
-    // Wait for Google script to load
-    setTimeout(driveAutoReconnect, 1000);
+    setTimeout(driveAutoReconnect, 1500);
     return;
   }
-  driveSignIn(clientId, true);
+  driveSignIn(DEFAULT_CLIENT_ID, true);
 }
 
 // Find or create the app data file
@@ -2686,6 +2692,11 @@ console.log('[МоятаКухня] Заредени рецепти:', recipes.l
 initDriveUI();
 // Auto-reconnect to Drive if previously connected
 setTimeout(driveAutoReconnect, 1500);
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW:', e));
+}
 </script>
 </body>
 </html>

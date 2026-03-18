@@ -1,0 +1,27 @@
+{
+  "name": "Моята Кухня",
+  "short_name": "Кухня",
+  "description": "Лично приложение за рецепти с Gemini AI",
+  "start_url": "./recepti.html",
+  "display": "standalone",
+  "background_color": "#1a0a00",
+  "theme_color": "#1a0a00",
+  "orientation": "portrait-primary",
+  "lang": "bg",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "lifestyle"],
+  "screenshots": []
+}
