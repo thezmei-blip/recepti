@@ -676,8 +676,55 @@
   .import-zone p { font-size: 0.9rem; color: var(--gray); }
   .import-zone strong { color: var(--brown-mid); }
 
-  /* === CATEGORY FILTER === */
-  .category-chips {
+  /* === CATEGORY GRID === */
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .cat-card {
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform var(--transition), box-shadow var(--transition);
+    background: var(--warm-white);
+    border: 1px solid rgba(200,118,58,0.15);
+    position: relative;
+  }
+  .cat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+  .cat-card-img {
+    width: 100%;
+    height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cat-card-body {
+    padding: 10px 12px 12px;
+  }
+  .cat-card-name {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    color: var(--brown);
+    margin-bottom: 2px;
+  }
+  .cat-card-count {
+    font-size: 0.78rem;
+    color: var(--gray);
+  }
+
+  @media (max-width: 480px) {
+    .cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .cat-card-img { height: 90px; font-size: 2.8rem; }
+  }
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
@@ -794,17 +841,33 @@
 </nav>
 
 <main>
-  <!-- HOME VIEW -->
+  <!-- HOME VIEW — Category folders -->
   <div class="view active" id="view-home">
     <div class="search-wrap" id="searchBar" style="display:none">
       <input type="text" id="searchInput" placeholder="Търси рецепта..." autocomplete="off">
       <span class="search-icon">🔍</span>
     </div>
-    <div class="category-chips" id="categoryChips"></div>
-    <div class="recipe-grid" id="recipeGrid"></div>
-    <div class="empty-state" id="emptyState" style="display:none">
-      <div class="icon">🥣</div>
-      <p>Няма намерени рецепти.<br>Добавете нова с бутона +</p>
+
+    <!-- CATEGORIES GRID -->
+    <div id="categoriesView">
+      <div class="cat-grid" id="catGrid"></div>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <div class="icon">🥣</div>
+        <p>Няма рецепти.<br>Добавете нова с бутона +</p>
+      </div>
+    </div>
+
+    <!-- RECIPES IN CATEGORY -->
+    <div id="categoryRecipesView" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button id="backToCatsBtn" style="background:var(--cream);border:2px solid var(--amber-light);width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">←</button>
+        <h2 id="catViewTitle" style="font-family:var(--font-display);color:var(--brown);font-size:1.3rem"></h2>
+      </div>
+      <div class="recipe-grid" id="recipeGrid"></div>
+      <div class="empty-state" id="catEmptyState" style="display:none">
+        <div class="icon">🥣</div>
+        <p>Няма рецепти в тази категория.</p>
+      </div>
     </div>
   </div>
 
@@ -1144,38 +1207,106 @@ document.querySelectorAll('.nav-tab').forEach(t => {
 });
 
 // =====================
-// RENDER GRID
+// CATEGORY DEFINITIONS
 // =====================
-function getCategories() {
-  const cats = ['Всички', ...new Set(recipes.map(r => r.category))];
-  return cats;
+const CAT_META = {
+  'Основно ястие': { bg: 'linear-gradient(135deg,#e8941a,#c8763a)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🍲</text></svg>` },
+  'Супа':          { bg: 'linear-gradient(135deg,#5ba4cf,#3a7abf)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🍜</text></svg>` },
+  'Салата':        { bg: 'linear-gradient(135deg,#6aaa7a,#3a6645)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🥗</text></svg>` },
+  'Десерт':        { bg: 'linear-gradient(135deg,#e8629a,#c0392b)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🎂</text></svg>` },
+  'Закуска':       { bg: 'linear-gradient(135deg,#f5c870,#e8941a)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🥐</text></svg>` },
+  'Предястие':     { bg: 'linear-gradient(135deg,#b39ddb,#7e57c2)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🫙</text></svg>` },
+  'Напитка':       { bg: 'linear-gradient(135deg,#80deea,#00838f)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🥤</text></svg>` },
+  'Друго':         { bg: 'linear-gradient(135deg,#bcaaa4,#795548)', svg: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><text y="55" x="50" text-anchor="middle" font-size="48">🍽️</text></svg>` },
+};
+function getCatMeta(cat) {
+  return CAT_META[cat] || { bg: 'linear-gradient(135deg,#bcaaa4,#795548)', svg: `<svg viewBox="0 0 100 80"><text y="55" x="50" text-anchor="middle" font-size="48">🍽️</text></svg>` };
 }
 
-function renderCategories() {
-  const el = document.getElementById('categoryChips');
-  el.innerHTML = getCategories().map(c => `
-    <button class="chip ${c === selectedCategory ? 'active' : ''}" data-cat="${c}">${c}</button>
-  `).join('');
-  el.querySelectorAll('.chip').forEach(ch => {
-    ch.addEventListener('click', () => { selectedCategory = ch.dataset.cat; renderCategories(); renderGrid(); });
+let currentCatView = null; // which category is open
+
+// =====================
+// RENDER HOME
+// =====================
+function renderGrid() {
+  if (searchQuery) {
+    showCategoryRecipes(null); // show all matching
+    return;
+  }
+  if (currentCatView) {
+    showCategoryRecipes(currentCatView);
+  } else {
+    showCategoriesGrid();
+  }
+}
+
+function showCategoriesGrid() {
+  currentCatView = null;
+  document.getElementById('categoriesView').style.display = '';
+  document.getElementById('categoryRecipesView').style.display = 'none';
+
+  // Gather categories that have recipes + always show defined ones
+  const recipeCats = new Set(recipes.map(r => r.category));
+  const allCats = Object.keys(CAT_META).filter(c => recipeCats.has(c));
+  // Add any custom categories not in CAT_META
+  recipeCats.forEach(c => { if (!CAT_META[c]) allCats.push(c); });
+
+  const grid = document.getElementById('catGrid');
+  const empty = document.getElementById('emptyState');
+
+  if (!recipes.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = allCats.map(cat => {
+    const count = recipes.filter(r => r.category === cat).length;
+    if (!count) return '';
+    const meta = getCatMeta(cat);
+    // Pick up to 3 emojis from recipes in this category
+    const emojis = [...new Set(recipes.filter(r => r.category === cat).map(r => r.emoji || '🍽️'))].slice(0,3);
+    return `
+      <div class="cat-card" data-cat="${cat}">
+        <div class="cat-card-img" style="background:${meta.bg}">
+          <span style="font-size:3rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2))">${emojis[0] || '🍽️'}</span>
+          ${emojis[1] ? `<span style="font-size:1.8rem;position:absolute;bottom:8px;right:12px;opacity:0.8">${emojis[1]}</span>` : ''}
+          ${emojis[2] ? `<span style="font-size:1.4rem;position:absolute;top:8px;right:14px;opacity:0.6">${emojis[2]}</span>` : ''}
+        </div>
+        <div class="cat-card-body">
+          <div class="cat-card-name">${cat}</div>
+          <div class="cat-card-count">${count} ${count === 1 ? 'рецепта' : 'рецепти'}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.cat-card').forEach(c => {
+    c.addEventListener('click', () => {
+      currentCatView = c.dataset.cat;
+      showCategoryRecipes(currentCatView);
+    });
   });
 }
 
-function getFilteredRecipes() {
-  let list = recipes;
-  if (selectedCategory !== 'Всички') list = list.filter(r => r.category === selectedCategory);
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    list = list.filter(r => r.title.toLowerCase().includes(q) || (r.desc || '').toLowerCase().includes(q));
-  }
-  return list;
-}
+function showCategoryRecipes(cat) {
+  document.getElementById('categoriesView').style.display = 'none';
+  document.getElementById('categoryRecipesView').style.display = '';
 
-function renderGrid() {
-  renderCategories();
+  let list;
+  if (cat === null && searchQuery) {
+    // Search mode — show all matching
+    const q = searchQuery.toLowerCase();
+    list = recipes.filter(r => r.title.toLowerCase().includes(q) || (r.desc||'').toLowerCase().includes(q));
+    document.getElementById('catViewTitle').textContent = `🔍 "${searchQuery}"`;
+  } else {
+    list = recipes.filter(r => r.category === cat);
+    const meta = getCatMeta(cat);
+    document.getElementById('catViewTitle').innerHTML = `<span style="background:${meta.bg};-webkit-background-clip:text;-webkit-text-fill-color:transparent">${cat}</span>`;
+  }
+
   const grid = document.getElementById('recipeGrid');
-  const empty = document.getElementById('emptyState');
-  const list = getFilteredRecipes();
+  const empty = document.getElementById('catEmptyState');
   if (!list.length) {
     grid.innerHTML = '';
     empty.style.display = '';
@@ -1187,6 +1318,13 @@ function renderGrid() {
     c.addEventListener('click', () => openDetail(c.dataset.id));
   });
 }
+
+document.getElementById('backToCatsBtn').addEventListener('click', () => {
+  currentCatView = null;
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  showCategoriesGrid();
+});
 
 function renderFavGrid() {
   const grid = document.getElementById('favGrid');
@@ -1257,8 +1395,14 @@ function openDetail(id) {
 }
 
 document.getElementById('backBtn').addEventListener('click', () => {
-  showView('home');
-  document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+  if (currentCatView) {
+    showView('home');
+    document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+    showCategoryRecipes(currentCatView);
+  } else {
+    showView('home');
+    document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+  }
 });
 
 document.getElementById('detailFavBtn').addEventListener('click', () => {
@@ -1544,7 +1688,12 @@ document.getElementById('btnSearch').addEventListener('click', () => {
 });
 document.getElementById('searchInput').addEventListener('input', e => {
   searchQuery = e.target.value;
-  renderGrid();
+  if (searchQuery) {
+    currentCatView = null;
+    showCategoryRecipes(null);
+  } else {
+    showCategoriesGrid();
+  }
 });
 
 // =====================
