@@ -1778,30 +1778,51 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
   document.getElementById('importPreview').style.display = 'none';
   fetchedUrlText = '';
 
-  try {
-    // Use allorigins proxy to bypass CORS
-    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl);
-    const data = await res.json();
+  // Multiple proxies as fallback
+  const proxies = [
+    u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
+    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+  ];
 
-    if (!data.contents) throw new Error('Страницата не може да се зареди');
+  let html = '';
+  let lastErr = '';
+
+  for (const proxyFn of proxies) {
+    try {
+      const proxyUrl = proxyFn(url);
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('json')) {
+        const data = await res.json();
+        html = data.contents || data.body || '';
+      } else {
+        html = await res.text();
+      }
+      if (html.length > 200) break; // success
+    } catch(e) {
+      lastErr = e.message;
+    }
+  }
+
+  try {
+    if (!html || html.length < 200) throw new Error('Страницата не може да се зареди. ' + lastErr);
 
     // Strip HTML tags and clean up text
     const tmp = document.createElement('div');
-    tmp.innerHTML = data.contents;
-    // Remove scripts, styles, nav, footer
-    tmp.querySelectorAll('script,style,nav,footer,header,aside,.ad,.advertisement').forEach(el => el.remove());
-    const text = tmp.innerText || tmp.textContent || '';
-    // Clean excessive whitespace
-    fetchedUrlText = text.replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim().slice(0, 8000);
+    tmp.innerHTML = html;
+    tmp.querySelectorAll('script,style,nav,footer,header,aside,.ad,.advertisement,noscript,iframe').forEach(el => el.remove());
+    const text = (tmp.innerText || tmp.textContent || '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim().slice(0, 8000);
 
-    if (fetchedUrlText.length < 100) throw new Error('Не намерих текст на страницата');
+    if (text.length < 100) throw new Error('Не намерих текст на страницата');
 
+    fetchedUrlText = text;
     status.style.display = '';
     status.style.background = '#e8f5ea';
     status.style.color = 'var(--green)';
     status.style.border = '1px solid var(--green-light)';
-    status.textContent = '✅ Страницата е заредена (' + fetchedUrlText.length + ' символа). Натисни „Разпознай" за да извлечем рецептата.';
+    status.textContent = '✅ Страницата е заредена (' + text.length + ' символа). Натисни „Разпознай" за да извлечем рецептата.';
     document.getElementById('parseUrlBtn').style.display = '';
 
   } catch(e) {
