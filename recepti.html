@@ -2457,9 +2457,9 @@ if (!recipes.length) {
 const DRIVE_FILE_NAME = 'moята_кухня_recepti.json';
 const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive';
 const SHARED_FOLDER_ID = '1pGF9pakbo7Flrx1oZy747ffLtz56zzgI';
-const DEFAULT_CLIENT_ID = '828797600775-aei6ubrclcdbalm9gkmot38td406329n.apps.googleusercontent.com';
+const DEFAULT_CLIENT_ID = '828797600775-3d8ps3geevi4cr5mhgou9ppl2nia008p.apps.googleusercontent.com';
 let driveToken = null;
-let driveFileId = store.getItem('mk_drive_file_id') || null;
+let driveFileId = null; // always search fresh — old IDs from previous client may be invalid
 let driveAutoEnabled = store.getItem('mk_drive_auto') === '1';
 
 // Init Drive UI
