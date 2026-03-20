@@ -994,6 +994,15 @@
       <button class="btn-secondary" id="detailEditBtn" style="flex:1;margin:0">✏️ Редактирай</button>
       <button onclick="deleteCurrentRecipe()" style="background:none;border:2px solid #c0392b;color:#c0392b;padding:13px 16px;border-radius:8px;cursor:pointer;font-weight:600">🗑️</button>
     </div>
+    <div style="margin-top:10px">
+      <button class="btn-secondary" id="fetchPhotoFromUrlBtn" style="width:100%;margin:0">🖼️ Вземи снимка от линк</button>
+      <div id="fetchPhotoUrlWrap" style="display:none;margin-top:8px">
+        <div style="display:flex;gap:8px">
+          <input type="url" id="fetchPhotoUrlInput" placeholder="https://recepti.gotvach.bg/..." style="flex:1;font-size:0.88rem">
+          <button id="doFetchPhotoBtn" style="background:var(--amber);color:white;border:none;padding:10px 16px;border-radius:var(--radius-sm);cursor:pointer;font-weight:600;white-space:nowrap">Вземи</button>
+        </div>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -1464,6 +1473,11 @@ document.getElementById('backBtn').addEventListener('click', () => {
   }
 });
 
+document.getElementById('fetchPhotoFromUrlBtn').addEventListener('click', () => {
+  const wrap = document.getElementById('fetchPhotoUrlWrap');
+  wrap.style.display = wrap.style.display === 'none' ? '' : 'none';
+});
+
 document.getElementById('detailFavBtn').addEventListener('click', () => {
   const r = recipes.find(x => x.id === currentRecipeId);
   if (!r) return;
@@ -1477,6 +1491,55 @@ document.getElementById('detailEditBtn').addEventListener('click', () => {
   const r = recipes.find(x => x.id === currentRecipeId);
   if (!r) return;
   openAddModal(r);
+});
+
+document.getElementById('doFetchPhotoBtn').addEventListener('click', async () => {
+  const url = document.getElementById('fetchPhotoUrlInput').value.trim();
+  if (!url) { showToast('⚠️ Въведи URL'); return; }
+
+  const btn = document.getElementById('doFetchPhotoBtn');
+  btn.textContent = '⏳';
+  btn.disabled = true;
+
+  const proxies = [
+    u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
+    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+  ];
+
+  let html = '';
+  for (const proxyFn of proxies) {
+    try {
+      const res = await fetch(proxyFn(url), { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const ct = res.headers.get('content-type') || '';
+      html = ct.includes('json') ? (await res.json()).contents || '' : await res.text();
+      if (html.length > 200) break;
+    } catch(e) {}
+  }
+
+  if (!html) { showToast('⚠️ Не можах да заредя страницата'); btn.textContent = 'Вземи'; btn.disabled = false; return; }
+
+  // Extract og:image
+  let ogImage = '';
+  const ogMatch = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                  html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i) ||
+                  html.match(/property=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
+  if (ogMatch) ogImage = ogMatch[1];
+
+  if (!ogImage) { showToast('⚠️ Не намерих снимка на тази страница'); btn.textContent = 'Вземи'; btn.disabled = false; return; }
+
+  // Update recipe
+  const r = recipes.find(x => x.id === currentRecipeId);
+  if (!r) return;
+  r.photoUrl = ogImage;
+  r.photoDriveId = '';
+  save();
+  openDetail(currentRecipeId);
+  document.getElementById('fetchPhotoUrlWrap').style.display = 'none';
+  showToast('✅ Снимката е обновена!');
+
+  btn.textContent = 'Вземи';
+  btn.disabled = false;
 });
 
 function deleteCurrentRecipe() {
