@@ -2525,6 +2525,15 @@ function driveSignIn(clientId, silent = false) {
     loadGoogleScript().then(() => driveSignIn(clientId, silent));
     return;
   }
+  // Check for popup blocker before attempting OAuth
+  if (!silent) {
+    const test = window.open('', '_blank', 'width=1,height=1');
+    if (!test || test.closed || typeof test.closed === 'undefined') {
+      showToast('⚠️ Popup блокерът пречи! Разреши попъпи за този сайт.');
+      return;
+    }
+    test.close();
+  }
   const email = store.getItem('mk_drive_email') || '';
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
