@@ -800,6 +800,10 @@
   .settings-row:last-child { border-bottom: none; }
   .settings-row span { color: var(--gray); font-size: 0.8rem; display: block; margin-top: 2px; }
 
+  /* === SYNC INDICATOR === */
+  #syncIndicator { transition: opacity 0.3s; }
+  .sync-spin { animation: spin 1s linear infinite; display: inline-block; }
+
   /* === SPINNER === */
   .spinner {
     display: inline-block;
@@ -832,6 +836,10 @@
 <header>
   <div class="logo">🍳 Моята Кухня</div>
   <div class="header-actions">
+    <div id="syncIndicator" title="Drive синхронизация" style="display:none;align-items:center;gap:5px;font-size:0.75rem;color:rgba(255,255,255,0.7);padding:0 6px">
+      <span id="syncIcon" style="font-size:1rem">☁️</span>
+      <span id="syncText"></span>
+    </div>
     <button class="btn-icon" id="btnSearch" title="Търсене">🔍</button>
     <button class="btn-icon" id="btnAI" title="Gemini AI">✨</button>
     <button class="btn-icon" id="btnImport" title="Импорт">📥</button>
@@ -2576,21 +2584,19 @@ async function driveGetFileId() {
 
 async function driveUpload(silent = false) {
   if (!driveToken) { if (!silent) showToast('⚠️ Не сте свързани с Drive'); return; }
-  if (!silent) showToast('⬆️ Качвам...');
+  showSyncIndicator('uploading');
   try {
     const content = JSON.stringify(recipes, null, 2);
     const blob = new Blob([content], { type: 'application/json' });
     const fileId = await driveGetFileId();
 
     if (fileId) {
-      // Update existing
       await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
         method: 'PATCH',
         headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
         body: blob
       });
     } else {
-      // Create new in shared folder
       const meta = JSON.stringify({ name: DRIVE_FILE_NAME, parents: [SHARED_FOLDER_ID] });
       const form = new FormData();
       form.append('metadata', new Blob([meta], { type: 'application/json' }));
@@ -2608,8 +2614,10 @@ async function driveUpload(silent = false) {
     const now = new Date().toISOString();
     store.setItem('mk_drive_last_sync', now);
     document.getElementById('driveLastSync').textContent = 'Последна синхронизация: ' + new Date(now).toLocaleString('bg-BG');
+    showSyncIndicator('success');
     if (!silent) showToast('☁️ Запазено в Google Drive (' + recipes.length + ' рецепти)');
   } catch(e) {
+    showSyncIndicator('error');
     if (!silent) showToast('⚠️ Drive грешка: ' + e.message);
   }
 }
@@ -2674,6 +2682,8 @@ function save() {
   storeSave();
   if (driveToken && driveAutoEnabled) {
     driveUpload(true);
+  } else if (driveAutoEnabled && !driveToken) {
+    showSyncIndicator('error');
   }
 }
 
@@ -2682,8 +2692,31 @@ const savedClientId = store.getItem('mk_drive_client_id') || '';
 if (savedClientId) document.getElementById('driveClientId').value = savedClientId;
 
 // =====================
-// GOOGLE DRIVE SYNC
+// SYNC INDICATOR
 // =====================
+let syncTimer = null;
+function showSyncIndicator(state) {
+  const el = document.getElementById('syncIndicator');
+  const icon = document.getElementById('syncIcon');
+  const text = document.getElementById('syncText');
+  el.style.display = 'flex';
+  clearTimeout(syncTimer);
+  if (state === 'uploading') {
+    icon.textContent = '☁️';
+    icon.classList.add('sync-spin');
+    text.textContent = 'Синхронизирам...';
+  } else if (state === 'success') {
+    icon.textContent = '✅';
+    icon.classList.remove('sync-spin');
+    text.textContent = 'Запазено';
+    syncTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+  } else if (state === 'error') {
+    icon.textContent = '⚠️';
+    icon.classList.remove('sync-spin');
+    text.textContent = 'Грешка';
+    syncTimer = setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+}
 
 renderGrid();
 console.log('[МоятаКухня] Заредени рецепти:', recipes.length);
