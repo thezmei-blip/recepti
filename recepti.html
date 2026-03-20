@@ -873,7 +873,7 @@
     <div id="categoryRecipesView" style="display:none">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <button id="backToCatsBtn" style="background:var(--cream);border:2px solid var(--amber-light);width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">←</button>
-        <h2 id="catViewTitle" style="font-family:var(--font-display);color:var(--brown);font-size:1.3rem"></h2>
+        <h2 id="catViewTitle" style="font-family:var(--font-display);color:var(--brown);font-size:1.3rem;flex:1"></h2>
       </div>
       <div class="recipe-grid" id="recipeGrid"></div>
       <div class="empty-state" id="catEmptyState" style="display:none">
@@ -1241,6 +1241,7 @@ let steps = [];
 let selectedCategory = 'Всички';
 let searchQuery = '';
 let wakeLock = null;
+let sortOrder = 'default'; // 'default' | 'az' | 'za'
 
 function getApiKey() {
   return document.getElementById('aiApiKey').value || store.getItem(KEY_KEY) || '';
@@ -1357,7 +1358,6 @@ function showCategoryRecipes(cat) {
 
   let list;
   if (cat === null && searchQuery) {
-    // Search mode — show all matching
     const q = searchQuery.toLowerCase();
     list = recipes.filter(r => r.title.toLowerCase().includes(q) || (r.desc||'').toLowerCase().includes(q));
     document.getElementById('catViewTitle').textContent = `🔍 "${searchQuery}"`;
@@ -1366,6 +1366,9 @@ function showCategoryRecipes(cat) {
     const meta = getCatMeta(cat);
     document.getElementById('catViewTitle').innerHTML = `<span style="background:${meta.bg};-webkit-background-clip:text;-webkit-text-fill-color:transparent">${cat}</span>`;
   }
+
+  // Always sort alphabetically
+  list = [...list].sort((a, b) => a.title.localeCompare(b.title, 'bg'));
 
   const grid = document.getElementById('recipeGrid');
   const empty = document.getElementById('catEmptyState');
