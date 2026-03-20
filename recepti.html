@@ -1240,6 +1240,7 @@ let ingredients = [];
 let steps = [];
 let selectedCategory = 'Всички';
 let searchQuery = '';
+let wakeLock = null;
 
 function getApiKey() {
   return document.getElementById('aiApiKey').value || store.getItem(KEY_KEY) || '';
@@ -1679,7 +1680,6 @@ document.getElementById('saveRecipeBtn').addEventListener('click', async () => {
 // =====================
 // COOKING MODE (Wake Lock)
 // =====================
-let wakeLock = null;
 
 async function enableCookingMode() {
   const btn = document.getElementById('cookingModeBtn');
