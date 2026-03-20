@@ -1029,6 +1029,21 @@
         <input type="text" id="fEmoji" placeholder="🍲" maxlength="4">
       </div>
     </div>
+
+    <!-- Photo upload -->
+    <div class="form-group">
+      <label>Снимка</label>
+      <div id="photoPreviewWrap" style="position:relative;margin-bottom:8px;display:none">
+        <img id="photoPreview" style="width:100%;height:160px;object-fit:cover;border-radius:var(--radius-sm);display:block">
+        <button id="removePhotoBtn" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:0.9rem">✕</button>
+      </div>
+      <div id="photoUploadZone" style="border:2px dashed var(--amber-light);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:all var(--transition)" onclick="document.getElementById('fPhotoInput').click()">
+        <div style="font-size:1.8rem;margin-bottom:6px">📷</div>
+        <p style="font-size:0.85rem;color:var(--gray)">Натисни за снимка от камера или галерия</p>
+        <input type="file" id="fPhotoInput" accept="image/*" style="display:none">
+      </div>
+      <div id="photoUploadStatus" style="display:none;font-size:0.82rem;padding:8px 12px;border-radius:var(--radius-sm);margin-top:6px"></div>
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label>Време (мин)</label>
@@ -1376,7 +1391,9 @@ function cardHTML(r) {
   const stars = r.rating ? '⭐'.repeat(r.rating) : '';
   return `
     <div class="recipe-card" data-id="${r.id}">
-      <div class="card-img">${r.emoji || '🍽️'}</div>
+      <div class="card-img" style="${r.photoUrl ? `background:url('${r.photoUrl}') center/cover no-repeat` : ''}">
+        ${r.photoUrl ? '' : (r.emoji || '🍽️')}
+      </div>
       <div class="card-body">
         <div class="card-title">${r.title}</div>
         <div class="card-meta">
@@ -1397,7 +1414,19 @@ function openDetail(id) {
   const r = recipes.find(x => x.id === id);
   if (!r) return;
   currentRecipeId = id;
-  document.getElementById('detailEmoji').textContent = r.emoji || '🍽️';
+
+  // Hero — photo or emoji
+  const hero = document.getElementById('detailHero');
+  if (r.photoUrl) {
+    hero.style.backgroundImage = `url('${r.photoUrl}')`;
+    hero.style.backgroundSize = 'cover';
+    hero.style.backgroundPosition = 'center';
+    document.getElementById('detailEmoji').textContent = '';
+  } else {
+    hero.style.backgroundImage = '';
+    document.getElementById('detailEmoji').textContent = r.emoji || '🍽️';
+  }
+
   document.getElementById('detailTitle').textContent = r.title;
   document.getElementById('detailMeta').innerHTML = `
     ${r.category ? `<span class="badge amber">${r.category}</span>` : ''}
@@ -1475,6 +1504,11 @@ function openAddModal(recipe) {
   document.getElementById('fServings').value = recipe ? (recipe.servings || '') : '';
   document.getElementById('fDesc').value = recipe ? (recipe.desc || '') : '';
 
+  // Photo preview
+  currentPhotoUrl = recipe ? (recipe.photoUrl || '') : '';
+  currentPhotoDriveId = recipe ? (recipe.photoDriveId || '') : '';
+  updatePhotoPreview();
+
   renderIngList();
   renderStepList();
   document.getElementById('addModal').classList.add('open');
@@ -1523,9 +1557,24 @@ document.getElementById('addStepBtn').addEventListener('click', () => {
 });
 document.getElementById('stepText').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addStepBtn').click(); });
 
-document.getElementById('saveRecipeBtn').addEventListener('click', () => {
+document.getElementById('saveRecipeBtn').addEventListener('click', async () => {
   const title = document.getElementById('fTitle').value.trim();
   if (!title) { showToast('⚠️ Въведи заглавие'); return; }
+
+  const btn = document.getElementById('saveRecipeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Запазване...';
+
+  // Upload photo to Drive if new file selected
+  if (pendingPhotoFile) {
+    const result = await uploadPhotoToDrive(pendingPhotoFile);
+    if (result) {
+      currentPhotoDriveId = result.id;
+      currentPhotoUrl = result.url;
+    }
+    pendingPhotoFile = null;
+  }
+
   const data = {
     id: editingId || Date.now().toString(),
     title,
@@ -1536,6 +1585,8 @@ document.getElementById('saveRecipeBtn').addEventListener('click', () => {
     desc: document.getElementById('fDesc').value,
     ingredients: [...ingredients],
     steps: [...steps],
+    photoUrl: currentPhotoUrl || '',
+    photoDriveId: currentPhotoDriveId || '',
     fav: false,
     created: new Date().toISOString()
   };
@@ -1550,8 +1601,115 @@ document.getElementById('saveRecipeBtn').addEventListener('click', () => {
   save();
   document.getElementById('addModal').classList.remove('open');
   renderGrid();
+  btn.disabled = false;
+  btn.textContent = '💾 Запази рецептата';
   showToast(editingId ? '✅ Рецептата е обновена' : '✅ Рецептата е запазена');
 });
+
+// =====================
+// PHOTO HANDLING
+// =====================
+let currentPhotoUrl = '';
+let currentPhotoDriveId = '';
+let pendingPhotoFile = null;
+const DRIVE_IMAGES_FOLDER = 'recepti_images';
+let driveImagesFolderId = store.getItem('mk_drive_images_folder') || null;
+
+function updatePhotoPreview() {
+  const wrap = document.getElementById('photoPreviewWrap');
+  const zone = document.getElementById('photoUploadZone');
+  const img = document.getElementById('photoPreview');
+  if (currentPhotoUrl) {
+    img.src = currentPhotoUrl;
+    wrap.style.display = '';
+    zone.style.display = 'none';
+  } else {
+    wrap.style.display = 'none';
+    zone.style.display = '';
+  }
+}
+
+document.getElementById('fPhotoInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingPhotoFile = file;
+  // Show local preview immediately
+  const reader = new FileReader();
+  reader.onload = ev => {
+    currentPhotoUrl = ev.target.result; // temp base64 for preview
+    updatePhotoPreview();
+  };
+  reader.readAsDataURL(file);
+  if (!driveToken) {
+    document.getElementById('photoUploadStatus').style.display = '';
+    document.getElementById('photoUploadStatus').style.background = '#fff3d9';
+    document.getElementById('photoUploadStatus').style.color = 'var(--brown-mid)';
+    document.getElementById('photoUploadStatus').textContent = '⚠️ Свържи Google Drive за да запазиш снимката в облака';
+  }
+});
+
+document.getElementById('removePhotoBtn').addEventListener('click', () => {
+  currentPhotoUrl = '';
+  currentPhotoDriveId = '';
+  pendingPhotoFile = null;
+  document.getElementById('fPhotoInput').value = '';
+  updatePhotoPreview();
+});
+
+async function getOrCreateImagesFolderInDrive() {
+  if (driveImagesFolderId) return driveImagesFolderId;
+  // Search for existing images folder inside shared folder
+  const q = encodeURIComponent(`name='${DRIVE_IMAGES_FOLDER}' and '${SHARED_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+    headers: { Authorization: 'Bearer ' + driveToken }
+  });
+  const d = await r.json();
+  if (d.files && d.files.length) {
+    driveImagesFolderId = d.files[0].id;
+    store.setItem('mk_drive_images_folder', driveImagesFolderId);
+    return driveImagesFolderId;
+  }
+  // Create folder
+  const cr = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: DRIVE_IMAGES_FOLDER, mimeType: 'application/vnd.google-apps.folder', parents: [SHARED_FOLDER_ID] })
+  });
+  const cd = await cr.json();
+  driveImagesFolderId = cd.id;
+  store.setItem('mk_drive_images_folder', driveImagesFolderId);
+  return driveImagesFolderId;
+}
+
+async function uploadPhotoToDrive(file) {
+  if (!driveToken) return null;
+  try {
+    const folderId = await getOrCreateImagesFolderInDrive();
+    const fileName = `recipe_${Date.now()}_${file.name.replace(/[^a-z0-9.]/gi, '_')}`;
+    const meta = JSON.stringify({ name: fileName, parents: [folderId] });
+    const form = new FormData();
+    form.append('metadata', new Blob([meta], { type: 'application/json' }));
+    form.append('file', file);
+    const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + driveToken },
+      body: form
+    });
+    const d = await r.json();
+    if (!d.id) throw new Error('Upload failed');
+    // Make file publicly readable
+    await fetch(`https://www.googleapis.com/drive/v3/files/${d.id}/permissions`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+    const url = `https://drive.google.com/thumbnail?id=${d.id}&sz=w800`;
+    return { id: d.id, url };
+  } catch(e) {
+    showToast('⚠️ Грешка при качване на снимка: ' + e.message);
+    return null;
+  }
+}
 
 // =====================
 // AI / GEMINI — multi-turn conversation
@@ -1824,6 +1982,20 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
     // Strip HTML tags and clean up text
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
+
+    // Extract og:image before stripping
+    let ogImage = '';
+    const ogImgMeta = tmp.querySelector('meta[property="og:image"]') ||
+                      tmp.querySelector('meta[name="og:image"]') ||
+                      tmp.querySelector('meta[property="twitter:image"]');
+    if (ogImgMeta) ogImage = ogImgMeta.getAttribute('content') || '';
+    // Also try from raw HTML
+    if (!ogImage) {
+      const ogMatch = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                      html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+      if (ogMatch) ogImage = ogMatch[1];
+    }
+    store.setItem('mk_pending_og_image', ogImage || '');
     tmp.querySelectorAll('script,style,nav,footer,header,aside,.ad,.advertisement,noscript,iframe').forEach(el => el.remove());
     const text = (tmp.innerText || tmp.textContent || '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim().slice(0, 8000);
 
@@ -2072,6 +2244,7 @@ document.getElementById('editBeforeImportBtn').addEventListener('click', () => {
 });
 
 function doSaveImported(r) {
+  const ogImage = store.getItem('mk_pending_og_image') || '';
   const rec = {
     id: Date.now().toString(),
     title: r.title || 'Импортирана рецепта',
@@ -2082,9 +2255,12 @@ function doSaveImported(r) {
     desc: r.desc || '',
     ingredients: r.ingredients || [],
     steps: r.steps || [],
+    photoUrl: r.photoUrl || ogImage || '',
+    photoDriveId: '',
     fav: false,
     created: new Date().toISOString()
   };
+  store.removeItem('mk_pending_og_image');
   recipes.unshift(rec);
   save();
   document.getElementById('importModal').classList.remove('open');
