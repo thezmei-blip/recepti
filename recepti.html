@@ -1249,6 +1249,10 @@ function getApiKey() {
 // VIEWS
 // =====================
 function showView(v) {
+  // Release wake lock when leaving detail view
+  if (wakeLock && v !== 'detail') {
+    wakeLock.release();
+  }
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
   document.getElementById('view-' + v).classList.add('active');
@@ -1716,14 +1720,6 @@ async function enableCookingMode() {
 
 document.getElementById('cookingModeBtn').addEventListener('click', enableCookingMode);
 
-// Release wake lock when navigating away from detail
-const _origShowView = showView;
-function showView(v) {
-  if (wakeLock && v !== 'detail') {
-    wakeLock.release();
-  }
-  _origShowView(v);
-}
 let currentPhotoUrl = '';
 let currentPhotoDriveId = '';
 let pendingPhotoFile = null;
