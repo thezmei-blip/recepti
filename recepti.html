@@ -2375,6 +2375,14 @@ function doSaveImported(r) {
   recipes.unshift(rec);
   save();
   document.getElementById('importModal').classList.remove('open');
+  // Clear all import fields
+  document.getElementById('importFreeText').value = '';
+  document.getElementById('importJsonText').value = '';
+  document.getElementById('importUrlInput').value = '';
+  document.getElementById('urlStatusMsg').style.display = 'none';
+  document.getElementById('parseUrlBtn').style.display = 'none';
+  document.getElementById('importPreview').style.display = 'none';
+  fetchedUrlText = '';
   showView('home');
   document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
   showToast('✅ Рецептата е импортирана!');
