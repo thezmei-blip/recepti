@@ -12,7 +12,6 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Моята Кухня</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
@@ -2514,7 +2513,10 @@ document.getElementById('driveAuthBtn').addEventListener('click', () => {
 });
 
 function driveSignIn(clientId, silent = false) {
-  if (!window.google) { if (!silent) showToast('⚠️ Google скриптът не е зареден'); return; }
+  if (!window.google) {
+    loadGoogleScript().then(() => driveSignIn(clientId, silent));
+    return;
+  }
   const email = store.getItem('mk_drive_email') || '';
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
@@ -2551,10 +2553,6 @@ function driveSignIn(clientId, silent = false) {
 function driveAutoReconnect() {
   const email = store.getItem('mk_drive_email');
   if (!email) return; // never connected before
-  if (!window.google) {
-    setTimeout(driveAutoReconnect, 1500);
-    return;
-  }
   driveSignIn(DEFAULT_CLIENT_ID, true);
 }
 
@@ -2692,6 +2690,19 @@ console.log('[МоятаКухня] Заредени рецепти:', recipes.l
 initDriveUI();
 // Auto-reconnect to Drive if previously connected
 setTimeout(driveAutoReconnect, 4000);
+
+// Load Google GSI script lazily
+function loadGoogleScript() {
+  return new Promise(resolve => {
+    if (window.google) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.defer = true;
+    s.onload = resolve;
+    document.head.appendChild(s);
+  });
+}
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
