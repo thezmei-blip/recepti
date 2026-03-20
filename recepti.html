@@ -1003,6 +1003,9 @@
         </div>
       </div>
     </div>
+    <div style="margin-top:10px">
+      <button id="cookingModeBtn" class="btn-secondary" style="width:100%;margin:0">👨‍🍳 Режим готвене — екранът остава включен</button>
+    </div>
   </div>
 </main>
 
@@ -1670,8 +1673,57 @@ document.getElementById('saveRecipeBtn').addEventListener('click', async () => {
 });
 
 // =====================
-// PHOTO HANDLING
+// COOKING MODE (Wake Lock)
 // =====================
+let wakeLock = null;
+
+async function enableCookingMode() {
+  const btn = document.getElementById('cookingModeBtn');
+  if (wakeLock) {
+    // Disable
+    await wakeLock.release();
+    wakeLock = null;
+    btn.textContent = '👨‍🍳 Режим готвене — екранът остава включен';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    showToast('😴 Режим готвене изключен');
+    return;
+  }
+  if (!('wakeLock' in navigator)) {
+    showToast('⚠️ Браузърът не поддържа Wake Lock');
+    return;
+  }
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    btn.textContent = '✅ Режим готвене — ВКЛЮЧЕН (натисни за изключване)';
+    btn.style.background = 'var(--green)';
+    btn.style.color = 'white';
+    btn.style.borderColor = 'var(--green)';
+    showToast('👨‍🍳 Екранът няма да се изключва!');
+    // Auto-release when leaving detail view
+    wakeLock.addEventListener('release', () => {
+      wakeLock = null;
+      btn.textContent = '👨‍🍳 Режим готвене — екранът остава включен';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    });
+  } catch(e) {
+    showToast('⚠️ ' + e.message);
+  }
+}
+
+document.getElementById('cookingModeBtn').addEventListener('click', enableCookingMode);
+
+// Release wake lock when navigating away from detail
+const _origShowView = showView;
+function showView(v) {
+  if (wakeLock && v !== 'detail') {
+    wakeLock.release();
+  }
+  _origShowView(v);
+}
 let currentPhotoUrl = '';
 let currentPhotoDriveId = '';
 let pendingPhotoFile = null;
