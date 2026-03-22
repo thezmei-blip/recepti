@@ -989,6 +989,13 @@
       <p id="detailDesc" style="font-size:0.95rem;color:var(--brown-dark);line-height:1.6"></p>
     </div>
     <h3 class="section-title">Продукти</h3>
+    <div id="servingsScaler" style="display:none;align-items:center;gap:12px;margin-bottom:16px;background:var(--cream);border-radius:var(--radius-sm);padding:10px 14px">
+      <span style="font-size:0.88rem;color:var(--brown-mid);font-weight:600">Порции:</span>
+      <button id="servMinus" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--amber);background:white;font-size:1.1rem;cursor:pointer;font-weight:700;color:var(--amber);display:flex;align-items:center;justify-content:center">−</button>
+      <span id="servCount" style="font-size:1.1rem;font-weight:700;color:var(--brown);min-width:28px;text-align:center"></span>
+      <button id="servPlus" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--amber);background:white;font-size:1.1rem;cursor:pointer;font-weight:700;color:var(--amber);display:flex;align-items:center;justify-content:center">+</button>
+      <span id="servReset" style="font-size:0.8rem;color:var(--gray);cursor:pointer;text-decoration:underline;margin-left:4px">Нулирай</span>
+    </div>
     <ul class="ingredients-detail" id="detailIngredients"></ul>
     <h3 class="section-title">Начин на приготвяне</h3>
     <ol class="steps-detail" id="detailSteps"></ol>
@@ -1486,6 +1493,18 @@ function openDetail(id) {
   document.getElementById('detailIngredients').innerHTML = (r.ingredients || []).map(i =>
     `<li><span class="ing-name">${i.name}</span><span class="ing-amount">${i.amount}</span></li>`
   ).join('');
+
+  // Servings scaler
+  baseIngredients = r.ingredients || [];
+  baseServings = r.servings ? parseInt(r.servings) : null;
+  currentServings = baseServings;
+  const scaler = document.getElementById('servingsScaler');
+  if (baseServings && baseServings > 0 && baseIngredients.length) {
+    scaler.style.display = 'flex';
+    document.getElementById('servCount').textContent = baseServings;
+  } else {
+    scaler.style.display = 'none';
+  }
   document.getElementById('detailSteps').innerHTML = (r.steps || []).map(s =>
     `<li><div class="step-num"></div><div class="step-txt">${s}</div></li>`
   ).join('');
@@ -1712,8 +1731,52 @@ document.getElementById('saveRecipeBtn').addEventListener('click', async () => {
 });
 
 // =====================
-// COOKING MODE (Wake Lock)
+// SERVINGS SCALER
 // =====================
+let baseServings = null;
+let currentServings = null;
+let baseIngredients = [];
+
+function renderScaledIngredients() {
+  const ratio = baseServings ? currentServings / baseServings : 1;
+  const list = document.getElementById('detailIngredients');
+  list.innerHTML = baseIngredients.map(i => {
+    const scaled = scaleAmount(i.amount, ratio);
+    return `<li><span class="ing-name">${i.name}</span><span class="ing-amount">${scaled}</span></li>`;
+  }).join('');
+  document.getElementById('servCount').textContent = currentServings;
+}
+
+function scaleAmount(amount, ratio) {
+  if (!amount || ratio === 1) return amount;
+  // Replace all numbers in the amount string
+  return amount.replace(/[\d]+([.,][\d]+)?/g, match => {
+    const num = parseFloat(match.replace(',', '.'));
+    if (isNaN(num)) return match;
+    const scaled = num * ratio;
+    // Nice formatting
+    if (scaled === Math.floor(scaled)) return scaled.toString();
+    if (scaled < 10) return parseFloat(scaled.toFixed(1)).toString();
+    return Math.round(scaled).toString();
+  });
+}
+
+document.getElementById('servMinus').addEventListener('click', () => {
+  if (currentServings > 1) {
+    currentServings--;
+    renderScaledIngredients();
+  }
+});
+
+document.getElementById('servPlus').addEventListener('click', () => {
+  currentServings++;
+  renderScaledIngredients();
+});
+
+document.getElementById('servReset').addEventListener('click', () => {
+  currentServings = baseServings;
+  renderScaledIngredients();
+});
 
 async function enableCookingMode() {
   const btn = document.getElementById('cookingModeBtn');
@@ -3080,6 +3143,8 @@ function showSyncIndicator(state) {
 renderGrid();
 console.log('[МоятаКухня] Заредени рецепти:', recipes.length);
 initDriveUI();
+// Push initial state so back button stays in app
+history.replaceState({ view: 'home' }, '');
 // Auto-reconnect to Drive if previously connected
 setTimeout(driveAutoReconnect, 4000);
 
@@ -3099,7 +3164,15 @@ function loadGoogleScript() {
 // =====================
 // ANDROID BACK BUTTON
 // =====================
-window.addEventListener('popstate', () => {
+window.addEventListener('popstate', (e) => {
+  // Close open modals first
+  const openModal = document.querySelector('.modal-overlay.open');
+  if (openModal) {
+    openModal.classList.remove('open');
+    history.pushState({ view: currentView }, '');
+    return;
+  }
+
   if (currentView === 'detail') {
     if (currentCatView) {
       showView('home');
@@ -3109,15 +3182,19 @@ window.addEventListener('popstate', () => {
       showView('home');
       document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
     }
+    history.pushState({ view: 'home' }, '');
   } else if (currentView === 'home' && currentCatView) {
     currentCatView = null;
     showCategoriesGrid();
+    history.pushState({ view: 'home' }, '');
   } else if (currentView === 'favorites' || currentView === 'settings') {
     showView('home');
     document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+    history.pushState({ view: 'home' }, '');
+  } else {
+    // Already on home — push state back to prevent exit
+    history.pushState({ view: 'home' }, '');
   }
-  // Close open modals
-  document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
 });
 
 // Push state on navigation so back button has something to pop
