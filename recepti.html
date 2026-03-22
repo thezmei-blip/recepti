@@ -3008,7 +3008,11 @@ async function driveUpload(silent = false) {
   if (!driveToken) { if (!silent) showToast('⚠️ Не сте свързани с Drive'); return; }
   showSyncIndicator('uploading');
   try {
-    const content = JSON.stringify(recipes, null, 2);
+    const payload = {
+      recipes,
+      geminiKey: store.getItem(KEY_KEY) || ''
+    };
+    const content = JSON.stringify(payload, null, 2);
     const blob = new Blob([content], { type: 'application/json' });
     const fileId = await driveGetFileId();
 
@@ -3057,10 +3061,27 @@ async function driveDownload(silent = false) {
       headers: { Authorization: 'Bearer ' + driveToken }
     });
     const data = await r.json();
-    if (!Array.isArray(data)) throw new Error('Невалиден формат');
 
-    // Merge: Drive data wins for newer records, keep local if newer
-    const merged = mergeRecipes(recipes, data);
+    // Support both old format (array) and new format ({recipes, geminiKey})
+    let remoteRecipes, remoteKey;
+    if (Array.isArray(data)) {
+      remoteRecipes = data;
+      remoteKey = '';
+    } else {
+      remoteRecipes = data.recipes || [];
+      remoteKey = data.geminiKey || '';
+    }
+
+    if (!Array.isArray(remoteRecipes)) throw new Error('Невалиден формат');
+
+    // Restore Gemini key if present and not already set locally
+    if (remoteKey && !store.getItem(KEY_KEY)) {
+      store.setItem(KEY_KEY, remoteKey);
+      document.getElementById('settingsApiKey').value = remoteKey;
+      if (!silent) showToast('🔑 Gemini ключът е възстановен от Drive');
+    }
+
+    const merged = mergeRecipes(recipes, remoteRecipes);
     recipes = merged;
     save();
     renderGrid();
