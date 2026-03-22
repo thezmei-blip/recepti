@@ -1009,6 +1009,9 @@
       <button onclick="deleteCurrentRecipe()" style="background:none;border:2px solid #c0392b;color:#c0392b;padding:13px 16px;border-radius:8px;cursor:pointer;font-weight:600">🗑️</button>
     </div>
     <div style="margin-top:10px">
+      <button class="btn-secondary" id="discussWithAiBtn" style="width:100%;margin:0;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-color:transparent">✨ Обсъди с Gemini</button>
+    </div>
+    <div style="margin-top:10px">
       <button class="btn-secondary" id="fetchPhotoFromUrlBtn" style="width:100%;margin:0">🖼️ Вземи снимка от линк</button>
       <div id="fetchPhotoUrlWrap" style="display:none;margin-top:8px">
         <div style="display:flex;gap:8px">
@@ -1530,6 +1533,35 @@ document.getElementById('backBtn').addEventListener('click', () => {
     showView('home');
     document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
   }
+});
+
+document.getElementById('discussWithAiBtn').addEventListener('click', () => {
+  const r = recipes.find(x => x.id === currentRecipeId);
+  if (!r) return;
+
+  // Build recipe summary for Gemini context
+  const ingText = (r.ingredients || []).map(i => `- ${i.name}${i.amount ? ': ' + i.amount : ''}`).join('\n');
+  const stepsText = (r.steps || []).map((s, i) => `${i+1}. ${s}`).join('\n');
+  const contextMsg = `Имам рецепта "${r.title}" (${r.category}${r.time ? ', ' + r.time + ' мин' : ''}${r.servings ? ', ' + r.servings + ' порции' : ''}).\n\nПродукти:\n${ingText}\n\nНачин на приготвяне:\n${stepsText}${r.notes ? '\n\nБележки: ' + r.notes : ''}`;
+
+  // Reset AI chat and preload recipe context
+  aiHistory = [];
+  const chat = document.getElementById('aiChat');
+  chat.innerHTML = '<div class="ai-msg ai">Здравей! 🍳 Разкажи ми каква рецепта търсиш — съставки, ястие, диета, порции. Ще я нагласим заедно и после можеш да я запазиш директно.<br><br><em>Например: „Искам мак енд чийз — по-лека версия за 2 порции\"</em></div>';
+
+  // Add recipe as first user message (hidden — just sets context)
+  aiHistory.push({ role: 'user', content: contextMsg });
+  aiHistory.push({ role: 'assistant', content: `Разбрах! Имам рецептата за **${r.title}** пред мен. Какво искаш да обсъдим? Мога да помогна с:\n- Замяна на продукти\n- Адаптиране на количества\n- Съвети за приготвяне\n- Вариации и идеи` });
+
+  // Show context indicator
+  chat.innerHTML = `
+    <div style="background:linear-gradient(135deg,#667eea22,#764ba222);border:1px solid #667eea44;border-radius:10px;padding:12px;margin-bottom:12px;font-size:0.85rem;color:#555">
+      🍳 <strong>${r.title}</strong> — рецептата е заредена. Питай каквото искаш!
+    </div>
+    <div class="ai-msg ai">Здравей! Виждам рецептата за <strong>${r.title}</strong>. Мога да помогна с промяна на продукти, количества, съвети за приготвяне или вариации. Какво те интересува?</div>`;
+
+  document.getElementById('aiModal').classList.add('open');
+  document.getElementById('aiInput').focus();
 });
 
 document.getElementById('fetchPhotoFromUrlBtn').addEventListener('click', () => {
