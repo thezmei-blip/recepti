@@ -1147,8 +1147,9 @@
           <span id="aiSaveTitle" style="font-family:var(--font-display);color:var(--brown);font-size:1rem"></span>
           <span style="font-size:0.8rem;color:var(--gray);margin-left:8px">готова за запис</span>
         </div>
-        <div style="display:flex;gap:8px">
-          <button id="aiSaveDirectBtn" style="background:var(--green);color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.88rem">✅ Запази</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="aiUpdateRecipeBtn" style="display:none;background:#667eea;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.88rem">🔄 Обнови рецептата</button>
+          <button id="aiSaveDirectBtn" style="background:var(--green);color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.88rem">✅ Запази нова</button>
           <button id="aiSaveEditBtn" style="background:var(--cream);color:var(--brown-mid);border:1.5px solid var(--amber-light);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.88rem">✏️ Редактирай</button>
         </div>
       </div>
@@ -1263,7 +1264,8 @@ let steps = [];
 let selectedCategory = 'Всички';
 let searchQuery = '';
 let wakeLock = null;
-let sortOrder = 'default'; // 'default' | 'az' | 'za'
+let sortOrder = 'default';
+let discussRecipeId = null; // ID на рецептата която обсъждаме // 'default' | 'az' | 'za'
 
 function getApiKey() {
   return document.getElementById('aiApiKey').value || store.getItem(KEY_KEY) || '';
@@ -1542,10 +1544,11 @@ document.getElementById('discussWithAiBtn').addEventListener('click', () => {
   // Build recipe summary for Gemini context
   const ingText = (r.ingredients || []).map(i => `- ${i.name}${i.amount ? ': ' + i.amount : ''}`).join('\n');
   const stepsText = (r.steps || []).map((s, i) => `${i+1}. ${s}`).join('\n');
-  const contextMsg = `Имам рецепта "${r.title}" (${r.category}${r.time ? ', ' + r.time + ' мин' : ''}${r.servings ? ', ' + r.servings + ' порции' : ''}).\n\nПродукти:\n${ingText}\n\nНачин на приготвяне:\n${stepsText}${r.notes ? '\n\nБележки: ' + r.notes : ''}`;
+  const contextMsg = `Имам рецепта "${r.title}" (${r.category}${r.time ? ', ' + r.time + ' мин' : ''}${r.servings ? ', ' + r.servings + ' порции' : ''}).\n\nПродукти:\n${ingText}\n\nНачин на приготвяне:\n${stepsText}${r.notes ? '\n\nБележки: ' + r.notes : ''}\n\nАко направим промени и потребителят иска да запази обновената рецепта, генерирай я в пълен формат с маркери RECIPE_JSON_START{...}RECIPE_JSON_END.`;
 
   // Reset AI chat and preload recipe context
   aiHistory = [];
+  discussRecipeId = r.id;
   const chat = document.getElementById('aiChat');
   chat.innerHTML = '<div class="ai-msg ai">Здравей! 🍳 Разкажи ми каква рецепта търсиш — съставки, ястие, диета, порции. Ще я нагласим заедно и после можеш да я запазиш директно.<br><br><em>Например: „Искам мак енд чийз — по-лека версия за 2 порции\"</em></div>';
 
@@ -1982,7 +1985,10 @@ document.getElementById('btnAI').addEventListener('click', () => {
   document.getElementById('aiModal').classList.add('open');
   setTimeout(() => document.getElementById('aiInput').focus(), 300);
 });
-document.getElementById('closeAiModal').addEventListener('click', () => document.getElementById('aiModal').classList.remove('open'));
+document.getElementById('closeAiModal').addEventListener('click', () => {
+  document.getElementById('aiModal').classList.remove('open');
+  discussRecipeId = null;
+});
 document.getElementById('aiModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
 document.getElementById('aiNewChatBtn').addEventListener('click', () => { if (confirm('Започни нов разговор? Текущият ще се изтрие.')) resetAiChat(); });
 
@@ -2069,7 +2075,13 @@ async function sendAiMessage() {
 function showAiSaveBar(r) {
   document.getElementById('aiSaveTitle').textContent = (r.emoji || '🍽️') + ' ' + (r.title || 'Рецепта');
   document.getElementById('aiSaveBar').style.display = '';
-  // Scroll chat to show save bar
+  // Show update button only when discussing existing recipe
+  const updateBtn = document.getElementById('aiUpdateRecipeBtn');
+  if (discussRecipeId) {
+    updateBtn.style.display = '';
+  } else {
+    updateBtn.style.display = 'none';
+  }
   setTimeout(() => {
     document.getElementById('aiSaveBar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 100);
@@ -2086,6 +2098,29 @@ function appendAiMsg(role, text, html = false) {
 }
 
 // Save directly
+document.getElementById('aiUpdateRecipeBtn').addEventListener('click', () => {
+  if (!lastAiRecipe || !discussRecipeId) return;
+  const idx = recipes.findIndex(r => r.id === discussRecipeId);
+  if (idx < 0) return;
+  const old = recipes[idx];
+  // Merge — keep id, fav, photo from original
+  recipes[idx] = {
+    ...lastAiRecipe,
+    id: old.id,
+    fav: old.fav,
+    photoUrl: old.photoUrl || lastAiRecipe.photoUrl || '',
+    photoDriveId: old.photoDriveId || '',
+    created: old.created
+  };
+  save();
+  document.getElementById('aiModal').classList.remove('open');
+  openDetail(discussRecipeId);
+  showToast('✅ Рецептата е обновена!');
+  lastAiRecipe = null;
+  discussRecipeId = null;
+  document.getElementById('aiSaveBar').style.display = 'none';
+});
+
 document.getElementById('aiSaveDirectBtn').addEventListener('click', () => {
   if (!lastAiRecipe) return;
   const r = {
@@ -3004,8 +3039,9 @@ function driveSignIn(clientId, silent = false) {
       initDriveUI();
       if (!silent) {
         showToast('✅ Свързано с Google Drive!');
-        await driveDownload(true);
       }
+      // Always download to sync recipes and restore Gemini key
+      await driveDownload(true);
     }
   });
   client.requestAccessToken();
