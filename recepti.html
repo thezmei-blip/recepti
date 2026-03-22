@@ -1550,8 +1550,8 @@ document.getElementById('discussWithAiBtn').addEventListener('click', () => {
   chat.innerHTML = '<div class="ai-msg ai">Здравей! 🍳 Разкажи ми каква рецепта търсиш — съставки, ястие, диета, порции. Ще я нагласим заедно и после можеш да я запазиш директно.<br><br><em>Например: „Искам мак енд чийз — по-лека версия за 2 порции\"</em></div>';
 
   // Add recipe as first user message (hidden — just sets context)
-  aiHistory.push({ role: 'user', content: contextMsg });
-  aiHistory.push({ role: 'assistant', content: `Разбрах! Имам рецептата за **${r.title}** пред мен. Какво искаш да обсъдим? Мога да помогна с:\n- Замяна на продукти\n- Адаптиране на количества\n- Съвети за приготвяне\n- Вариации и идеи` });
+  aiHistory.push({ role: 'user', parts: [{ text: contextMsg }] });
+  aiHistory.push({ role: 'model', parts: [{ text: `Разбрах! Имам рецептата за **${r.title}** пред мен. Какво искаш да обсъдим? Мога да помогна с:\n- Замяна на продукти\n- Адаптиране на количества\n- Съвети за приготвяне\n- Вариации и идеи` }] });
 
   // Show context indicator
   chat.innerHTML = `
