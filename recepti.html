@@ -984,11 +984,18 @@
     </div>
     <h1 class="recipe-detail-title" id="detailTitle"></h1>
     <div class="detail-meta" id="detailMeta"></div>
-    <p style="color:var(--gray);font-size:0.95rem;margin-bottom:24px;line-height:1.6" id="detailDesc"></p>
+    <div id="detailDescWrap" style="display:none;margin-bottom:20px;background:var(--warm-white);border-radius:var(--radius-sm);padding:16px;border-left:4px solid var(--brown-light)">
+      <h3 style="font-size:0.9rem;font-weight:700;color:var(--brown-mid);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">📄 Описание</h3>
+      <p id="detailDesc" style="font-size:0.95rem;color:var(--brown-dark);line-height:1.6"></p>
+    </div>
     <h3 class="section-title">Продукти</h3>
     <ul class="ingredients-detail" id="detailIngredients"></ul>
     <h3 class="section-title">Начин на приготвяне</h3>
     <ol class="steps-detail" id="detailSteps"></ol>
+    <div id="detailNotesWrap" style="display:none;margin-top:20px;background:var(--cream);border-radius:var(--radius-sm);padding:16px;border-left:4px solid var(--amber)">
+      <h3 style="font-size:0.9rem;font-weight:700;color:var(--brown-mid);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">📝 Бележки</h3>
+      <p id="detailNotes" style="font-size:0.92rem;color:var(--brown-dark);line-height:1.6"></p>
+    </div>
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="btn-secondary" id="detailFavBtn" style="flex:1;margin:0">❤️ Добави в любими</button>
       <button class="btn-secondary" id="detailEditBtn" style="flex:1;margin:0">✏️ Редактирай</button>
@@ -1069,6 +1076,11 @@
     <div class="form-group">
       <label>Описание</label>
       <textarea id="fDesc" placeholder="Кратко описание на ястието..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Бележки 📝</label>
+      <textarea id="fNotes" placeholder="Съвети, вариации, лични бележки..."></textarea>
     </div>
 
     <div class="form-group">
@@ -1355,6 +1367,7 @@ function showCategoriesGrid() {
 function showCategoryRecipes(cat) {
   document.getElementById('categoriesView').style.display = 'none';
   document.getElementById('categoryRecipesView').style.display = '';
+  pushState();
 
   let list;
   if (cat === null && searchQuery) {
@@ -1454,7 +1467,22 @@ function openDetail(id) {
     ${r.servings ? `<span class="badge green">👤 ${r.servings} порции</span>` : ''}
     ${r.fav ? '<span class="badge" style="background:#fff0f0;color:#e74c3c;border-color:#f1a0a0">❤️ Любима</span>' : ''}
   `;
-  document.getElementById('detailDesc').textContent = r.desc || '';
+  // Description
+  const descWrap = document.getElementById('detailDescWrap');
+  if (r.desc) {
+    descWrap.style.display = '';
+    document.getElementById('detailDesc').textContent = r.desc;
+  } else {
+    descWrap.style.display = 'none';
+  }
+  // Notes
+  const notesWrap = document.getElementById('detailNotesWrap');
+  if (r.notes) {
+    notesWrap.style.display = '';
+    document.getElementById('detailNotes').textContent = r.notes;
+  } else {
+    notesWrap.style.display = 'none';
+  }
   document.getElementById('detailIngredients').innerHTML = (r.ingredients || []).map(i =>
     `<li><span class="ing-name">${i.name}</span><span class="ing-amount">${i.amount}</span></li>`
   ).join('');
@@ -1470,6 +1498,7 @@ function openDetail(id) {
   document.getElementById('view-detail').classList.add('active');
   document.getElementById('fabAdd').style.display = 'none';
   currentView = 'detail';
+  pushState();
   window.scrollTo(0, 0);
 }
 
@@ -1577,6 +1606,7 @@ function openAddModal(recipe) {
   document.getElementById('fTime').value = recipe ? (recipe.time || '') : '';
   document.getElementById('fServings').value = recipe ? (recipe.servings || '') : '';
   document.getElementById('fDesc').value = recipe ? (recipe.desc || '') : '';
+  document.getElementById('fNotes').value = recipe ? (recipe.notes || '') : '';
 
   // Photo preview
   currentPhotoUrl = recipe ? (recipe.photoUrl || '') : '';
@@ -1657,6 +1687,7 @@ document.getElementById('saveRecipeBtn').addEventListener('click', async () => {
     time: document.getElementById('fTime').value,
     servings: document.getElementById('fServings').value,
     desc: document.getElementById('fDesc').value,
+    notes: document.getElementById('fNotes').value,
     ingredients: [...ingredients],
     steps: [...steps],
     photoUrl: currentPhotoUrl || '',
@@ -2225,44 +2256,56 @@ function localParseRecipe(text) {
   const lowerText = text.toLowerCase();
   for (const [re, em] of emojiMap) { if (re.test(lowerText)) { emoji = em; break; } }
 
-  // Ingredients — lines after "Продукти:" / "Съставки:" / "Необходими:" until next section
+  // Ingredients — lines after Bulgarian/English section headers
   const ingredients = [];
-  let inIngredients = false, inSteps = false;
-  const ingSection = text.match(/(?:продукти|съставки|необходими|ingredients)[:\s]*\n([\s\S]*?)(?:\n(?:инструкции|начин|стъпки|приготвяне|preparation|directions)|$)/i);
-  if (ingSection) {
-    ingSection[1].split('\n').forEach(line => {
-      line = line.replace(/^[\*\-•·]\s*/, '').trim();
-      if (!line) return;
-      // Try to split "500 г брашно" or "брашно — 500 г"
-      const m1 = line.match(/^([\d\/½¼¾.,]+\s*(?:г|кг|мл|л|бр|с\.л\.|ч\.л\.|чаш[аи]|шепа|щипка|пакет|връзк[аи]|скилид[кц]|бр\.)?\s*[а-яА-Яa-zA-Z\s\(\)]*)/);
-      const m2 = line.match(/^([а-яА-Яa-zA-Z][а-яА-Яa-zA-Z\s\(\)]+)\s*[-—–:]\s*(.+)/);
-      if (m2) {
-        ingredients.push({ name: m2[1].trim(), amount: m2[2].trim() });
-      } else {
-        // Try "200г брашно" or "200 г брашно"
-        const m3 = line.match(/^([\d\/½¼¾.,]+\s*(?:г|кг|мл|л|бр|с\.л\.|ч\.л\.|чаши?|шепа|щипка|пакет)[а-яА-Я]?\.?)\s+(.+)/i);
-        if (m3) ingredients.push({ name: m3[2].trim(), amount: m3[1].trim() });
-        else ingredients.push({ name: line, amount: '' });
+  const ING_HEADERS = /^[\s]*(?:продукти|съставки|необходими продукти|ingredients|за рецептата|нужни са)[:\s]*/i;
+  const STEP_HEADERS = /^[\s]*(?:инструкции|начин на приготвяне|приготвяне|стъпки|метод|preparation|directions|instructions|как се приготвя)[:\s]*/i;
+
+  // Split text into sections by headers
+  const sectionLines = text.split('\n');
+  let mode = 'none'; // 'ingredients' | 'steps'
+
+  for (const rawLine of sectionLines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (ING_HEADERS.test(line) && line.length < 60) { mode = 'ingredients'; continue; }
+    if (STEP_HEADERS.test(line) && line.length < 60) { mode = 'steps'; continue; }
+
+    if (mode === 'ingredients') {
+      const clean = line.replace(/^[\*\-•·]\s*/, '').trim();
+      if (!clean || clean.length < 2) continue;
+      const m2 = clean.match(/^([а-яА-Яa-zA-Z][а-яА-Яa-zA-Z\s\(\)\/]+)\s*[-—–:]\s*(.+)/);
+      const m3 = clean.match(/^([\d\/½¼¾.,]+\s*(?:г|кг|мл|л|бр|с\.л\.|ч\.л\.|чаши?|шепа|щипка|пакет)[а-яА-Я]?\.?)\s+(.+)/i);
+      if (m2) ingredients.push({ name: m2[1].trim(), amount: m2[2].trim() });
+      else if (m3) ingredients.push({ name: m3[2].trim(), amount: m3[1].trim() });
+      else ingredients.push({ name: clean, amount: '' });
+    }
+  }
+
+  // Steps — only from steps section, or numbered lines
+  const steps = [];
+  mode = 'none';
+  for (const rawLine of sectionLines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (STEP_HEADERS.test(line) && line.length < 60) { mode = 'steps'; continue; }
+    if (ING_HEADERS.test(line) && line.length < 60) { mode = 'none'; continue; }
+    if (mode === 'steps') {
+      const clean = line.replace(/^\d+[.)]\s*/, '').replace(/^[\*\-•·]\s*/, '').trim();
+      if (clean.length > 5) steps.push(clean);
+    }
+  }
+
+  // Fallback: if no steps found, grab numbered lines
+  if (!steps.length) {
+    sectionLines.forEach(line => {
+      if (/^\d+[.)]\s+.{5,}/.test(line.trim())) {
+        steps.push(line.trim().replace(/^\d+[.)]\s*/, ''));
       }
     });
   }
 
-  // Steps — numbered lines or after instructions section
-  const steps = [];
-  const stepSection = text.match(/(?:инструкции|начин|стъпки|приготвяне|preparation|directions)[:\s]*\n([\s\S]*?)$/i);
-  if (stepSection) {
-    stepSection[1].split('\n').forEach(line => {
-      line = line.replace(/^\d+[.)]\s*/, '').replace(/^[\*\-•·]\s*/, '').trim();
-      if (line.length > 3) steps.push(line);
-    });
-  } else {
-    // Fallback: grab numbered lines anywhere
-    lines.forEach(line => {
-      if (/^\d+[.)]\s+.{5,}/.test(line)) steps.push(line.replace(/^\d+[.)]\s*/, ''));
-    });
-  }
-
-  return { title, category, emoji, time, servings, desc: '', ingredients, steps };
+  return { title, category, emoji, time, servings, desc: '', notes: '', ingredients, steps };
 }
 
 document.getElementById('parseTextBtn').addEventListener('click', async () => {
@@ -3042,6 +3085,35 @@ function loadGoogleScript() {
     s.onload = resolve;
     document.head.appendChild(s);
   });
+}
+
+// =====================
+// ANDROID BACK BUTTON
+// =====================
+window.addEventListener('popstate', () => {
+  if (currentView === 'detail') {
+    if (currentCatView) {
+      showView('home');
+      document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+      showCategoryRecipes(currentCatView);
+    } else {
+      showView('home');
+      document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+    }
+  } else if (currentView === 'home' && currentCatView) {
+    currentCatView = null;
+    showCategoriesGrid();
+  } else if (currentView === 'favorites' || currentView === 'settings') {
+    showView('home');
+    document.querySelector('.nav-tab[data-view="home"]').classList.add('active');
+  }
+  // Close open modals
+  document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+});
+
+// Push state on navigation so back button has something to pop
+function pushState() {
+  history.pushState({ view: currentView }, '');
 }
 
 // Register Service Worker for PWA
