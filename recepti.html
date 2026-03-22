@@ -1479,7 +1479,7 @@ function openDetail(id) {
   const notesWrap = document.getElementById('detailNotesWrap');
   if (r.notes) {
     notesWrap.style.display = '';
-    document.getElementById('detailNotes').textContent = r.notes;
+    document.getElementById('detailNotes').innerHTML = r.notes.replace(/\n/g, '<br>');
   } else {
     notesWrap.style.display = 'none';
   }
@@ -1870,7 +1870,7 @@ const AI_SYSTEM = 'Ти си опитен български готвач и AI 
 'ВАЖНО: Когато потребителят е доволен и рецептата е финализирана (или когато сам прецениш че е готова), ' +
 'включи в отговора си JSON блок точно така (без интервали преди/след): ' +
 'RECIPE_JSON_START{"title":"...","category":"Основно ястие/Супа/Салата/Десерт/Закуска/Предястие/Напитка/Друго",' +
-'"emoji":"...","time":45,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."]}RECIPE_JSON_END ' +
+'"emoji":"...","time":45,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."],"notes":"..."}RECIPE_JSON_END ' +
 'Категориите са само: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго.';
 
 function resetAiChat() {
@@ -2178,7 +2178,7 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
   document.getElementById('importPreview').style.display = 'none';
 
   const prompt = 'Извлечи рецептата от текста и върни САМО валиден JSON. Без обяснения. Без markdown. Само JSON.\n' +
-  'Формат: {"title":"...","category":"Основно ястие","emoji":"🍽️","time":30,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."]}\n' +
+  'Формат: {"title":"...","category":"Основно ястие","emoji":"🍽️","time":30,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."],"notes":"..."}\n' +
   'Категории: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго.\n' +
   'Текст:\n' + fetchedUrlText.slice(0, 5000);
 
@@ -2260,16 +2260,18 @@ function localParseRecipe(text) {
   const ingredients = [];
   const ING_HEADERS = /^[\s]*(?:продукти|съставки|необходими продукти|ingredients|за рецептата|нужни са)[:\s]*/i;
   const STEP_HEADERS = /^[\s]*(?:инструкции|начин на приготвяне|приготвяне|стъпки|метод|preparation|directions|instructions|как се приготвя)[:\s]*/i;
+  const NOTE_HEADERS = /^[\s]*(?:бележки|бележка|notes?|съвети|tips?|забележки|variations?|вариации)[:\s]*/i;
 
   // Split text into sections by headers
   const sectionLines = text.split('\n');
-  let mode = 'none'; // 'ingredients' | 'steps'
+  let mode = 'none'; // 'ingredients' | 'steps' | 'notes'
 
   for (const rawLine of sectionLines) {
     const line = rawLine.trim();
     if (!line) continue;
     if (ING_HEADERS.test(line) && line.length < 60) { mode = 'ingredients'; continue; }
     if (STEP_HEADERS.test(line) && line.length < 60) { mode = 'steps'; continue; }
+    if (NOTE_HEADERS.test(line) && line.length < 60) { mode = 'notes'; continue; }
 
     if (mode === 'ingredients') {
       const clean = line.replace(/^[\*\-•·]\s*/, '').trim();
@@ -2282,17 +2284,22 @@ function localParseRecipe(text) {
     }
   }
 
-  // Steps — only from steps section, or numbered lines
+  // Steps and Notes — second pass
   const steps = [];
+  const notesLines = [];
   mode = 'none';
   for (const rawLine of sectionLines) {
     const line = rawLine.trim();
     if (!line) continue;
     if (STEP_HEADERS.test(line) && line.length < 60) { mode = 'steps'; continue; }
+    if (NOTE_HEADERS.test(line) && line.length < 60) { mode = 'notes'; continue; }
     if (ING_HEADERS.test(line) && line.length < 60) { mode = 'none'; continue; }
     if (mode === 'steps') {
       const clean = line.replace(/^\d+[.)]\s*/, '').replace(/^[\*\-•·]\s*/, '').trim();
       if (clean.length > 5) steps.push(clean);
+    } else if (mode === 'notes') {
+      const clean = line.replace(/^[\*\-•·]\s*/, '').trim();
+      if (clean.length > 3) notesLines.push(clean);
     }
   }
 
@@ -2305,7 +2312,8 @@ function localParseRecipe(text) {
     });
   }
 
-  return { title, category, emoji, time, servings, desc: '', notes: '', ingredients, steps };
+  const notes = notesLines.join('\n');
+  return { title, category, emoji, time, servings, desc: '', notes, ingredients, steps };
 }
 
 document.getElementById('parseTextBtn').addEventListener('click', async () => {
@@ -2324,7 +2332,7 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
     btn.innerHTML = '<span class="spinner"></span> Gemini разпознава...';
     const prompt = 'Извлечи рецептата от следния текст и върни САМО валиден JSON обект, без никакви обяснения, без markdown, без ```json тагове - само чист JSON.\n' +
     'JSON структурата трябва да е точно така:\n' +
-    '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"]}\n' +
+    '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"],"notes":"бележки (ако има)"}\n' +
     'Текст на рецептата:\n' + text;
     try {
       const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
@@ -2410,6 +2418,7 @@ function doSaveImported(r) {
     time: r.time || '',
     servings: r.servings || '',
     desc: r.desc || '',
+    notes: r.notes || '',
     ingredients: r.ingredients || [],
     steps: r.steps || [],
     photoUrl: r.photoUrl || ogImage || '',
