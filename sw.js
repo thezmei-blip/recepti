@@ -1,4 +1,4 @@
-const CACHE = 'moята-кухня-v7';
+const CACHE = 'moята-кухня-v8';
 const ASSETS = [
   './recepti.html',
   'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap',
