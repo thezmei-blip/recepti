@@ -1988,7 +1988,7 @@ async function callGeminiWithRetry(key, contents, genConfig, maxRetries = 3) {
         'Authorization': 'Bearer ' + key
       },
       body: JSON.stringify({
-        model: 'llama3-70b-8192',
+        model: 'openai/gpt-oss-120b',
         messages,
         temperature: genConfig.temperature || 0.75,
         max_tokens: genConfig.maxOutputTokens || 1800
@@ -2003,10 +2003,10 @@ async function callGeminiWithRetry(key, contents, genConfig, maxRetries = 3) {
       return { candidates: [{ content: { parts: [{ text }] } }] };
     }
 
-    // Handle rate limit errors
+    // Handle rate limit errors only (429) — other errors should surface immediately
     const msg = data.error?.message || JSON.stringify(data.error || '');
     const retryMatch = msg.match(/try again in ([\d.]+)s/i) || msg.match(/retry in ([\d.]+)s/i);
-    if ((res.status === 429 || data.error) && attempt < maxRetries - 1) {
+    if (res.status === 429 && attempt < maxRetries - 1) {
       const waitSec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) + 1 : 10;
       const chat = document.getElementById('aiChat');
       const countDiv = document.createElement('div');
