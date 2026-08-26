@@ -1960,7 +1960,7 @@ async function uploadPhotoToDrive(file) {
 let aiHistory = [];
 let lastAiRecipe = null;
 let lastAiCallTime = 0;
-const AI_MIN_INTERVAL = 12000; // 12 seconds between calls (5 RPM limit)
+const AI_MIN_INTERVAL = 4000; // 4 seconds between calls
 
 const AI_SYSTEM = 'Ти си опитен български готвач и AI асистент. Отговаряй САМО на български език. ' +
 'Помагаш на потребителя да измисли, уточни и нагласи рецепта — количества, съставки, стъпки. ' +
@@ -1970,6 +1970,39 @@ const AI_SYSTEM = 'Ти си опитен български готвач и AI 
 'RECIPE_JSON_START{"title":"...","category":"Основно ястие/Супа/Салата/Десерт/Закуска/Предястие/Напитка/Друго",' +
 '"emoji":"...","time":45,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."],"notes":"..."}RECIPE_JSON_END ' +
 'Категориите са само: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго.';
+
+async function callGeminiWithRetry(key, contents, genConfig, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents, generationConfig: genConfig })
+    });
+    const data = await res.json();
+    if (!data.error) return data;
+
+    const msg = data.error.message || '';
+    // Extract retry delay from error message
+    const retryMatch = msg.match(/retry in ([\d.]+)s/i);
+    if (retryMatch && attempt < maxRetries - 1) {
+      const waitSec = Math.ceil(parseFloat(retryMatch[1])) + 2;
+      // Show countdown
+      const chat = document.getElementById('aiChat');
+      const countDiv = document.createElement('div');
+      countDiv.className = 'ai-msg ai';
+      countDiv.id = 'aiRetryMsg';
+      chat.appendChild(countDiv);
+      for (let s = waitSec; s > 0; s--) {
+        countDiv.textContent = `⏳ Лимит достигнат — изчакай ${s} сек...`;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      countDiv.remove();
+      continue;
+    }
+    throw new Error(msg);
+  }
+  throw new Error('Твърде много опити — моля изчакай малко.');
+}
 
 function resetAiChat() {
   aiHistory = [];
@@ -2010,20 +2043,12 @@ async function sendAiMessage() {
   sendBtn.innerHTML = '<span class="spinner"></span>';
   sendBtn.disabled = true;
 
-  // Rate limit check
+  // Small rate limit between calls
   const now = Date.now();
   const wait = AI_MIN_INTERVAL - (now - lastAiCallTime);
-  if (wait > 0) {
-    appendAiMsg('ai', `⏳ Изчакай ${Math.ceil(wait/1000)} сек...`);
-    await new Promise(r => setTimeout(r, wait));
-    // Remove the wait message
-    const chat = document.getElementById('aiChat');
-    const msgs = chat.querySelectorAll('.ai-msg.ai');
-    if (msgs.length) msgs[msgs.length-1].remove();
-  }
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
   lastAiCallTime = Date.now();
 
-  // Build contents: system as first user turn (Gemini 1.5 style)
   const contents = [
     { role: 'user', parts: [{ text: AI_SYSTEM }] },
     { role: 'model', parts: [{ text: 'Разбрах! Готов съм да помогна с рецептата.' }] },
@@ -2031,33 +2056,32 @@ async function sendAiMessage() {
   ];
 
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        generationConfig: { temperature: 0.75, maxOutputTokens: 1800 }
-      })
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    const data = await callGeminiWithRetry(key, contents, { temperature: 0.75, maxOutputTokens: 1800 });
     const rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Нямам отговор.';
-
-    // Add to history
     aiHistory.push({ role: 'model', parts: [{ text: rawReply }] });
 
-    // Extract recipe JSON if present
-    const recipeMatch = rawReply.match(/RECIPE_JSON_START(\{[\s\S]*?\})RECIPE_JSON_END/);
-    if (recipeMatch) {
-      try {
-        lastAiRecipe = JSON.parse(recipeMatch[1]);
-        showAiSaveBar(lastAiRecipe);
-      } catch(e) { console.warn('Recipe JSON parse error:', e); }
+    // Extract recipe JSON — try markers first, then raw JSON
+    let recipeJson = null;
+    const markerMatch = rawReply.match(/RECIPE_JSON_START([\s\S]*?)RECIPE_JSON_END/);
+    if (markerMatch) {
+      try { recipeJson = JSON.parse(markerMatch[1].trim()); } catch(e) {}
     }
+    if (!recipeJson) {
+      const jsonStart = rawReply.indexOf('{');
+      const jsonEnd = rawReply.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd > jsonStart) {
+        try {
+          const parsed = JSON.parse(rawReply.slice(jsonStart, jsonEnd + 1));
+          if (parsed.title && parsed.ingredients) recipeJson = parsed;
+        } catch(e) {}
+      }
+    }
+    if (recipeJson) { lastAiRecipe = recipeJson; showAiSaveBar(lastAiRecipe); }
 
-    // Display: strip the JSON block from shown text
+    // Display — strip JSON blocks
     const displayText = rawReply
       .replace(/RECIPE_JSON_START[\s\S]*?RECIPE_JSON_END/g, '')
+      .replace(/\{[\s\S]*?"title"[\s\S]*?"ingredients"[\s\S]*?\}/g, recipeJson ? '✅ _Рецептата е готова за запис_' : '')
       .trim()
       .replace(/\n/g, '<br>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -2065,7 +2089,7 @@ async function sendAiMessage() {
     appendAiMsg('ai', displayText, true);
 
   } catch(e) {
-    appendAiMsg('ai', '⚠️ Грешка: ' + e.message);
+    appendAiMsg('ai', '⚠️ ' + e.message);
   }
 
   sendBtn.innerHTML = '➤';
@@ -2313,25 +2337,13 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
   'Текст:\n' + fetchedUrlText.slice(0, 5000);
 
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 3000 }
-      })
-    });
-    const data = await res.json();
+    const data = await callGeminiWithRetry(key, [{ parts: [{ text: prompt }] }], { temperature: 0.1, maxOutputTokens: 3000 });
     if (data.error) throw new Error(data.error.message);
     let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    // Strip any markdown fences
     rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-    // Find JSON object in response (in case there's extra text)
     const jsonStart = rawText.indexOf('{');
     const jsonEnd = rawText.lastIndexOf('}');
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-      rawText = rawText.slice(jsonStart, jsonEnd + 1);
-    }
+    if (jsonStart !== -1 && jsonEnd !== -1) rawText = rawText.slice(jsonStart, jsonEnd + 1);
     parsedImportRecipe = JSON.parse(rawText);
     showImportPreview(parsedImportRecipe);
   } catch(e) {
@@ -2465,15 +2477,7 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
     '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"],"notes":"бележки (ако има)"}\n' +
     'Текст на рецептата:\n' + text;
     try {
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
-        })
-      });
-      const data = await res.json();
+      const data = await callGeminiWithRetry(key, [{ parts: [{ text: prompt }] }], { temperature: 0.2, maxOutputTokens: 1200 });
       if (data.error) throw new Error(data.error.message);
       let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
