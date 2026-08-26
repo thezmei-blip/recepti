@@ -936,15 +936,15 @@
       </div>
     </div>
     <div class="settings-section">
-      <div class="settings-title">🤖 Gemini AI интеграция</div>
+      <div class="settings-title">🤖 Groq AI интеграция</div>
       <div class="settings-row">
         <div>
           <strong>API ключ</strong>
-          <span>Въведи своя Gemini API ключ</span>
+          <span>Въведи своя Groq API ключ (безплатно на console.groq.com)</span>
         </div>
       </div>
       <div style="padding:0 20px 16px">
-        <input type="password" id="settingsApiKey" placeholder="AIza..." style="margin-bottom:8px">
+        <input type="password" id="settingsApiKey" placeholder="gsk_..." style="margin-bottom:8px">
         <button class="btn-secondary" id="saveApiKey" style="width:auto;padding:10px 20px;margin:0">Запази ключа</button>
       </div>
     </div>
@@ -1121,7 +1121,7 @@
   <div class="modal ai-modal">
     <div class="modal-header">
       <div>
-        <h2 class="modal-title">✨ Gemini AI Готвач</h2>
+        <h2 class="modal-title">✨ Groq AI Готвач</h2>
         <div style="font-size:0.75rem;color:var(--gray);margin-top:2px">Обсъди рецептата, нагласи я, после я запази</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -1131,7 +1131,7 @@
     </div>
     <div class="gemini-key-row">
       <label>🔑</label>
-      <input type="password" id="aiApiKey" placeholder="Gemini API ключ (от Настройки)">
+      <input type="password" id="aiApiKey" placeholder="Groq API ключ (от Настройки)">
     </div>
     <div class="ai-chat" id="aiChat">
       <div class="ai-msg ai">Здравей! 🍳 Разкажи ми каква рецепта търсиш — съставки, ястие, диета, порции. Ще я нагласим заедно и после можеш да я запазиш директно.<br><br><em>Например: „Искам мак енд чийз — по-лека версия за 2 порции"</em></div>
@@ -1181,7 +1181,7 @@
       <textarea id="importFreeText" placeholder="Заглавие: Мак енд Чийз&#10;Продукти:&#10;* 500 г макарони&#10;* 200 г чедър&#10;&#10;Инструкции:&#10;1. Загрейте фурната...&#10;2. ..." style="height:160px;margin-bottom:10px"></textarea>
       <div class="gemini-key-row" id="importKeyRow">
         <label>🔑</label>
-        <input type="password" id="importApiKey" placeholder="Gemini API ключ (незадължителен — без него се ползва локален парсър)">
+        <input type="password" id="importApiKey" placeholder="Groq API ключ (незадължителен — без него се ползва локален парсър)">
       </div>
       <button class="btn-primary" id="parseTextBtn">✨ Разпознай рецептата</button>
     </div>
@@ -1198,7 +1198,7 @@
       <div id="urlStatusMsg" style="display:none;padding:10px 14px;border-radius:var(--radius-sm);font-size:0.85rem;margin-bottom:10px"></div>
       <div class="gemini-key-row">
         <label>🔑</label>
-        <input type="password" id="importUrlApiKey" placeholder="Gemini API ключ (задължителен за линк импорт)">
+        <input type="password" id="importUrlApiKey" placeholder="Groq API ключ (задължителен за линк импорт)">
       </div>
       <button class="btn-primary" id="parseUrlBtn" style="display:none">✨ Разпознай с Gemini</button>
     </div>
@@ -1243,7 +1243,7 @@
 // STORAGE — file://, http://, https:// safe
 // =====================
 const STORE_KEY = 'mk_recipes';
-const KEY_KEY   = 'mk_gemini_key';
+const KEY_KEY   = 'mk_groq_key';
 const _mem = {};
 const store = (() => {
   const t = '__mk__';
@@ -1972,25 +1972,45 @@ const AI_SYSTEM = 'Ти си опитен български готвач и AI 
 'Категориите са само: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго.';
 
 async function callGeminiWithRetry(key, contents, genConfig, maxRetries = 3) {
+  // Convert Gemini format to Groq/OpenAI format
+  const messages = [];
+  for (const c of contents) {
+    const role = c.role === 'model' ? 'assistant' : c.role;
+    const text = c.parts ? c.parts.map(p => p.text || '').join('') : (c.content || '');
+    messages.push({ role, content: text });
+  }
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents, generationConfig: genConfig })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages,
+        temperature: genConfig.temperature || 0.75,
+        max_tokens: genConfig.maxOutputTokens || 1800
+      })
     });
     const data = await res.json();
-    if (!data.error) return data;
 
-    const msg = data.error.message || '';
-    // Extract retry delay from error message
-    const retryMatch = msg.match(/retry in ([\d.]+)s/i);
-    if (retryMatch && attempt < maxRetries - 1) {
-      const waitSec = Math.ceil(parseFloat(retryMatch[1])) + 2;
-      // Show countdown
+    // Groq returns OpenAI format
+    if (data.choices) {
+      // Convert back to Gemini-like format for compatibility
+      const text = data.choices[0]?.message?.content || '';
+      return { candidates: [{ content: { parts: [{ text }] } }] };
+    }
+
+    // Handle rate limit errors
+    const msg = data.error?.message || JSON.stringify(data.error || '');
+    const retryMatch = msg.match(/try again in ([\d.]+)s/i) || msg.match(/retry in ([\d.]+)s/i);
+    if ((res.status === 429 || data.error) && attempt < maxRetries - 1) {
+      const waitSec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) + 1 : 10;
       const chat = document.getElementById('aiChat');
       const countDiv = document.createElement('div');
       countDiv.className = 'ai-msg ai';
-      countDiv.id = 'aiRetryMsg';
       chat.appendChild(countDiv);
       for (let s = waitSec; s > 0; s--) {
         countDiv.textContent = `⏳ Лимит достигнат — изчакай ${s} сек...`;
@@ -2033,7 +2053,7 @@ async function sendAiMessage() {
   const msg = input.value.trim();
   if (!msg) return;
   const key = getApiKey();
-  if (!key) { showToast('⚠️ Въведи Gemini API ключ в Настройки'); return; }
+  if (!key) { showToast('⚠️ Въведи Groq API ключ в Настройки'); return; }
 
   input.value = '';
   appendAiMsg('user', msg);
@@ -2323,7 +2343,7 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
 document.getElementById('parseUrlBtn').addEventListener('click', async () => {
   if (!fetchedUrlText) return;
   const key = document.getElementById('importUrlApiKey').value.trim() || store.getItem(KEY_KEY) || '';
-  if (!key) { showToast('⚠️ Въведи Gemini API ключ'); return; }
+  if (!key) { showToast('⚠️ Въведи Groq API ключ'); return; }
   if (document.getElementById('importUrlApiKey').value.trim()) store.setItem(KEY_KEY, key);
 
   const btn = document.getElementById('parseUrlBtn');
