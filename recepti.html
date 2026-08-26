@@ -1988,7 +1988,7 @@ async function callGeminiWithRetry(key, contents, genConfig, maxRetries = 3) {
         'Authorization': 'Bearer ' + key
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama3-70b-8192',
         messages,
         temperature: genConfig.temperature || 0.75,
         max_tokens: genConfig.maxOutputTokens || 1800
