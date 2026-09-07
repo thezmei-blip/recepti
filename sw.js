@@ -1,4 +1,4 @@
-const CACHE = 'moята-кухня-v21';
+const CACHE = 'moята-кухня-v22';
 
 // Let the page ask which cache version is currently active
 self.addEventListener('message', e => {
@@ -7,14 +7,22 @@ self.addEventListener('message', e => {
   }
 });
 const ASSETS = [
-  './recepti.html',
   'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap',
 ];
 
-// Install — cache core assets
+// Install — cache core assets. recepti.html is fetched separately with
+// cache: 'reload' to bypass the browser/HTTP cache — otherwise a stale
+// HTTP-cached copy could get baked into the new SW cache even after
+// bumping CACHE, making version bumps silently ineffective.
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS)).catch(() => {})
+    caches.open(CACHE).then(async cache => {
+      try {
+        const freshHtml = await fetch('./recepti.html', { cache: 'reload' });
+        if (freshHtml.ok) await cache.put('./recepti.html', freshHtml);
+      } catch (err) {}
+      await cache.addAll(ASSETS).catch(() => {});
+    })
   );
   self.skipWaiting();
 });
