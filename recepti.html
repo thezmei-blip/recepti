@@ -1978,7 +1978,7 @@ async function callGeminiWithRetry(key, contents, genConfig, maxRetries = 3) {
   // Convert Gemini format to Groq/OpenAI format
   const messages = [];
   for (const c of contents) {
-    const role = c.role === 'model' ? 'assistant' : c.role;
+    const role = c.role === 'model' ? 'assistant' : (c.role || 'user');
     const text = c.parts ? c.parts.map(p => p.text || '').join('') : (c.content || '');
     messages.push({ role, content: text });
   }
