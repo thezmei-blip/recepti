@@ -1,4 +1,4 @@
-const CACHE = 'moята-кухня-v22';
+const CACHE = 'moята-кухня-v23';
 
 // Let the page ask which cache version is currently active
 self.addEventListener('message', e => {

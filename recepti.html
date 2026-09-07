@@ -2361,7 +2361,7 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
   const prompt = 'Извлечи рецептата от текста и върни САМО валиден JSON. Без обяснения. Без markdown. Само JSON.\n' +
   'Формат: {"title":"...","category":"Основно ястие","emoji":"🍽️","time":30,"servings":4,"desc":"...","ingredients":[{"name":"...","amount":"..."}],"steps":["..."],"notes":"..."}\n' +
   'Категории: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго.\n' +
-  'Текст:\n' + fetchedUrlText.slice(0, 5000);
+  'Текст:\n' + fetchedUrlText;
 
   try {
     const data = await callGeminiWithRetry(key, [{ parts: [{ text: prompt }] }], { temperature: 0.1, maxOutputTokens: 3000 });
