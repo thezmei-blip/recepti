@@ -1,4 +1,11 @@
-const CACHE = 'moята-кухня-v16';
+const CACHE = 'moята-кухня-v17';
+
+// Let the page ask which cache version is currently active
+self.addEventListener('message', e => {
+  if (e.data === 'GET_VERSION') {
+    e.source.postMessage({ type: 'VERSION', version: CACHE });
+  }
+});
 const ASSETS = [
   './recepti.html',
   'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;600&display=swap',

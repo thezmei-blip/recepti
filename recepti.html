@@ -841,7 +841,7 @@
       <span id="syncText"></span>
     </div>
     <button class="btn-icon" id="btnSearch" title="Търсене">🔍</button>
-    <button class="btn-icon" id="btnAI" title="Gemini AI">✨</button>
+    <button class="btn-icon" id="btnAI" title="AI Готвач">✨</button>
     <button class="btn-icon" id="btnImport" title="Импорт">📥</button>
   </div>
 </header>
@@ -970,7 +970,7 @@
       <div class="settings-row">
         <div>
           <strong>Моята Кухня</strong>
-          <span>Версия 1.0 • Работи офлайн</span>
+          <span>Версия <span id="appVersionLabel">?</span> • Работи офлайн</span>
         </div>
       </div>
     </div>
@@ -1009,7 +1009,7 @@
       <button onclick="deleteCurrentRecipe()" style="background:none;border:2px solid #c0392b;color:#c0392b;padding:13px 16px;border-radius:8px;cursor:pointer;font-weight:600">🗑️</button>
     </div>
     <div style="margin-top:10px">
-      <button class="btn-secondary" id="discussWithAiBtn" style="width:100%;margin:0;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-color:transparent">✨ Обсъди с Gemini</button>
+      <button class="btn-secondary" id="discussWithAiBtn" style="width:100%;margin:0;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-color:transparent">✨ Обсъди с AI</button>
     </div>
     <div style="margin-top:10px">
       <button class="btn-secondary" id="fetchPhotoFromUrlBtn" style="width:100%;margin:0">🖼️ Вземи снимка от линк</button>
@@ -1176,7 +1176,7 @@
     <!-- Tab: Free text -->
     <div class="itab-panel" id="itab-text">
       <div style="background:#fff8ec;border:1px solid var(--amber-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;font-size:0.82rem;color:var(--brown-mid);line-height:1.6">
-        ✨ <strong>Поддържа свободен формат</strong> — постави рецепта от интернет, от книга, или напиши на ръка. Gemini ще я разпознае автоматично.
+        ✨ <strong>Поддържа свободен формат</strong> — постави рецепта от интернет, от книга, или напиши на ръка. AI ще я разпознае автоматично.
       </div>
       <textarea id="importFreeText" placeholder="Заглавие: Мак енд Чийз&#10;Продукти:&#10;* 500 г макарони&#10;* 200 г чедър&#10;&#10;Инструкции:&#10;1. Загрейте фурната...&#10;2. ..." style="height:160px;margin-bottom:10px"></textarea>
       <div class="gemini-key-row" id="importKeyRow">
@@ -1189,7 +1189,7 @@
     <!-- Tab: URL -->
     <div class="itab-panel" id="itab-url" style="display:none">
       <div style="background:#fff8ec;border:1px solid var(--amber-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;font-size:0.82rem;color:var(--brown-mid);line-height:1.6">
-        🔗 <strong>Импорт от линк</strong> — постави URL на рецепта от интернет. Gemini ще извлече автоматично продуктите и стъпките.
+        🔗 <strong>Импорт от линк</strong> — постави URL на рецепта от интернет. AI ще извлече автоматично продуктите и стъпките.
       </div>
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <input type="url" id="importUrlInput" placeholder="https://www.example.com/recepti/musaka" style="flex:1">
@@ -1200,7 +1200,7 @@
         <label>🔑</label>
         <input type="password" id="importUrlApiKey" placeholder="Groq API ключ (задължителен за линк импорт)">
       </div>
-      <button class="btn-primary" id="parseUrlBtn" style="display:none">✨ Разпознай с Gemini</button>
+      <button class="btn-primary" id="parseUrlBtn" style="display:none">✨ Разпознай с AI</button>
     </div>
 
     <!-- Tab: JSON -->
@@ -1598,12 +1598,14 @@ document.getElementById('doFetchPhotoBtn').addEventListener('click', async () =>
   const proxies = [
     u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
     u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+    u => 'https://thingproxy.freeboard.io/fetch/' + u,
   ];
 
   let html = '';
   for (const proxyFn of proxies) {
     try {
-      const res = await fetch(proxyFn(url), { signal: AbortSignal.timeout(8000) });
+      const res = await fetch(proxyFn(url), { signal: AbortSignal.timeout(12000) });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const ct = res.headers.get('content-type') || '';
       html = ct.includes('json') ? (await res.json()).contents || '' : await res.text();
@@ -2272,6 +2274,8 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
     u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
     u => 'https://corsproxy.io/?' + encodeURIComponent(u),
     u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+    u => 'https://thingproxy.freeboard.io/fetch/' + u,
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
   ];
 
   let html = '';
@@ -2280,7 +2284,7 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
   for (const proxyFn of proxies) {
     try {
       const proxyUrl = proxyFn(url);
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('json')) {
@@ -2296,7 +2300,7 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
   }
 
   try {
-    if (!html || html.length < 200) throw new Error('Страницата не може да се зареди. ' + lastErr);
+    if (!html || html.length < 200) throw new Error('Страницата не може да се зареди (пробвах 5 прокси). ' + lastErr);
 
     // Strip HTML tags and clean up text
     const tmp = document.createElement('div');
@@ -2347,7 +2351,7 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
   if (document.getElementById('importUrlApiKey').value.trim()) store.setItem(KEY_KEY, key);
 
   const btn = document.getElementById('parseUrlBtn');
-  btn.innerHTML = '<span class="spinner"></span> Gemini разпознава...';
+  btn.innerHTML = '<span class="spinner"></span> AI разпознава...';
   btn.disabled = true;
   document.getElementById('importPreview').style.display = 'none';
 
@@ -2370,7 +2374,7 @@ document.getElementById('parseUrlBtn').addEventListener('click', async () => {
     showToast('⚠️ Грешка: ' + e.message);
   }
 
-  btn.innerHTML = '✨ Разпознай с Gemini';
+  btn.innerHTML = '✨ Разпознай с AI';
   btn.disabled = false;
 });
 
@@ -2491,7 +2495,7 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
   // Try Gemini if key available
   if (key) {
     if (document.getElementById('importApiKey').value.trim()) store.setItem(KEY_KEY, key);
-    btn.innerHTML = '<span class="spinner"></span> Gemini разпознава...';
+    btn.innerHTML = '<span class="spinner"></span> AI разпознава...';
     const prompt = 'Извлечи рецептата от следния текст и върни САМО валиден JSON обект, без никакви обяснения, без markdown, без ```json тагове - само чист JSON.\n' +
     'JSON структурата трябва да е точно така:\n' +
     '{"title":"заглавие","category":"една от: Основно ястие, Супа, Салата, Десерт, Закуска, Предястие, Напитка, Друго","emoji":"подходящ emoji","time":45,"servings":4,"desc":"едно изречение","ingredients":[{"name":"продукт","amount":"количество"}],"steps":["стъпка 1","стъпка 2"],"notes":"бележки (ако има)"}\n' +
@@ -2506,7 +2510,7 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
       if (jsonStart !== -1 && jsonEnd !== -1) rawText = rawText.slice(jsonStart, jsonEnd + 1);
       parsedImportRecipe = JSON.parse(rawText);
       showImportPreview(parsedImportRecipe);
-      btn.innerHTML = '✨ Разпознай с Gemini';
+      btn.innerHTML = '✨ Разпознай с AI';
       btn.disabled = false;
       return;
     } catch(e) {
@@ -2524,7 +2528,7 @@ document.getElementById('parseTextBtn').addEventListener('click', async () => {
   } else {
     showToast('⚠️ Не можах да разпозная рецептата');
   }
-  btn.innerHTML = '✨ Разпознай с Gemini';
+  btn.innerHTML = '✨ Разпознай с AI';
   btn.disabled = false;
 });
 
@@ -3317,6 +3321,17 @@ function pushState() {
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(e => console.log('SW:', e));
+
+  // Ask the active SW which cache version it's running, show it in Настройки
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'VERSION') {
+      const label = document.getElementById('appVersionLabel');
+      if (label) label.textContent = e.data.version;
+    }
+  });
+  navigator.serviceWorker.ready.then(reg => {
+    if (reg.active) reg.active.postMessage('GET_VERSION');
+  });
 }
 </script>
 </body>
