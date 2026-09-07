@@ -1596,6 +1596,7 @@ document.getElementById('doFetchPhotoBtn').addEventListener('click', async () =>
   btn.disabled = true;
 
   const proxies = [
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
     u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
     u => 'https://corsproxy.io/?' + encodeURIComponent(u),
     u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
@@ -2269,13 +2270,15 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
   document.getElementById('importPreview').style.display = 'none';
   fetchedUrlText = '';
 
-  // Multiple proxies as fallback
+  // Multiple proxies as fallback — HTML-based proxies first (needed for og:image extraction),
+  // r.jina.ai last as a reliable text-only fallback (no raw HTML, so no og:image from it)
   const proxies = [
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
     u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
     u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
     u => 'https://thingproxy.freeboard.io/fetch/' + u,
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://r.jina.ai/' + u,
   ];
 
   let html = '';
@@ -2300,7 +2303,7 @@ document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
   }
 
   try {
-    if (!html || html.length < 200) throw new Error('Страницата не може да се зареди (пробвах 5 прокси). ' + lastErr);
+    if (!html || html.length < 200) throw new Error('Страницата не може да се зареди (пробвах 6 прокси). ' + lastErr);
 
     // Strip HTML tags and clean up text
     const tmp = document.createElement('div');
